@@ -1,0 +1,894 @@
+---
+title: "Forensic Facial Examiners vs Super-recognizers: Evaluating Behavior Beyond Accuracy"
+author: Corresponding author&#58; Dr. Carina A. Hahn, National Institute of Standards and Technology
+output: 
+  html_document:
+    theme: lumen
+    toc: true
+    toc_depth: 2
+    code_folding: hide
+editor_options: 
+  chunk_output_type: console
+---
+<style>
+pre {
+  overflow-x: auto;
+}
+pre code {
+  word-wrap: normal;
+  white-space: pre;
+}
+</style>
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,warning = FALSE,tidy=TRUE,dpi=300)
+options(width = 999)
+```
+
+
+# About
+This is the analysis script for [Facial examiners vs. super-recognizers: Evaluating behavior beyond accuracy](https://psyarxiv.com/hq2ab/). Code here can be used to replicate results and figures. 
+
+Code is available as-is for informational purposes with no intent to provide software support.
+
+Corresponding author: Dr. Carina A. Hahn, <carina.hahn@nist.gov> 
+
+# Requirements
+Set working directory to Source File Location (referred to as HomeDir for explanation purposes). Source File location is the location of this analysis script.
+
+If first time using, download required scripts from from Kilem L. Gwet, Ph.D. at  https://www.agreestat.com/software/default.html (most recently accessed 03 November 2021)
+
+* weights.gen.r
+* agree.coeff2.r
+* agree.coeff3.dist.r
+* agree.coeff3.raw.r
+* paired t-test for agreement coefficients.r
+
+Save in folder called Agree_coefficients within source file location:e.g., HomeDir/Agree_coefficients
+
+Download the corresponding R script Facial_Examiners_vs_Super-recognizers_Imported_Functions.R for required functions and variable definitions.
+
+Required R packages are shown in code.
+
+```{r load packages and source functions, include=FALSE}
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+library(ez)
+library(ggpubr)
+library(RColorBrewer)
+library(jmv)
+library(rcompanion)
+library(R.utils)
+library(progress)
+
+sourceDirectory("./Scripts/Agree_coefficients") #Will need to download from https://www.agreestat.com/software/default.html (see directions above)
+source("./Scripts/Facial_Examiners_vs_Super-recognizers_Imported_Functions.R")
+saved.seeds<-readRDS("seeds_for_pairwise.rds")
+
+theme_update(plot.title = element_text(hjust = 0.5))
+```
+
+
+## Development and run conditions
+Code was developed and run using RStudio on macOS. The analysis file is an R Markdown (.rmd) file. The .html document is its output.
+
+The code was developed with R version 4.1.2 and RStudio version 2021.09.0. Executing the .rmd file will output the current version being run at the time of execution in the section [Version and libraries].
+
+For more information on RStudio and R Markdown, see https://www.rstudio.com and https://rmarkdown.rstudio.com. See [Running the script] for required scripts.
+
+<font size="2"> Disclaimer: Certain commercial equipment, instruments, or materials are identified in order to specify the procedures adequately. Such identification is not intended to imply recommendation or endorsement by NIST, nor is it intended to imply that the materials or equipment identified are necessarily the best available for the purpose. </font>
+
+
+# Experimental procedure
+
+Participants viewed 2 faces and rated their similarity. Subjects were asked to score the similarity ("Scores") of 20 pairs of images on a scale of -3 to 3 (-3: the observations strongly support that it is not the ame person; +3: The observations strongly support that it is the same person). For each facial comparison, they provided their perceived difficulty rating ("Difficulty") of their judgment on a scale of 1 to 5 (1. Easy: The comparison was easier than most facial comparisons; 5, Not Possible: The comparison was virtually impossible, due to a lack of detail in the image(s)).
+
+12 of the trials were the same identity (mateBinary: 1); 8 were different identities (matebinary: 0)
+
+See the [paper](https://psyarxiv.com/hq2ab/) for full experimental procedures. 
+
+# Data
+
+## Obtaining
+De-identified data can be obtained via data transfer agreement with the National Institute of Standards and Technology (NIST). Contact Dr. Carina Hahn at <carina.hahn@nist.gov> to obtain a data transfer agreement.
+
+## Column information and data coding
+
+* Images: image pair identifier
+* mateBinary: trial type identifier. 1= same identity pair; 0 = different identity pair
+* Difficulty: difficulty rating provided by participant
+* Group: participant group identifier. 1to1Face = facial examiner; Super = super-recognizer
+* Scores: identity judgment provided by participant
+* SubID: unique participant identifier
+
+```{r ReadDataFrames}
+
+#Set working directory to Source File Location, then run
+analysis.data<-readRDS("Hahnetal_examiners_super-recognizers.rds") #data can be obtained via data transfer agreement from NIST. See section 'Data' above
+```
+
+# Number of participants
+```{r n.subj}
+analysis.data %>%
+  group_by(Group) %>%
+  summarise(n.sub=n_distinct(SubID))
+```
+
+
+```{r data checks,eval=FALSE,include=FALSE}
+# Can set include = FALSE after check this
+# Check columns
+head(analysis.data)
+tail(analysis.data)
+# num. trials each person saw. Should all be 20
+with(analysis.data,tapply(Images,SubID,length)) #trials each person saw. Should all be 20
+plot(analysis.data$SubID)
+# num. times each image was shown across all participants. Should all be 70
+with(analysis.data,tapply(SubID,Images,length))
+plot(analysis.data$Images)
+#num. same-id/diff-id trials each person saw. Correct if everyone lands at intersection between 8 trials for nonmatch (0) and 12 trials for match (1)
+plot(with(analysis.data,tapply(Scores, list(SubID,mateBinary), length)))
+#visualize scatter plots of raw identity judgments (scores). Correct if ranges from -3 to +3 (all integers) and there are values in each
+plot(analysis.data$Scores)
+#visualize scatter plots of raw difficulty judgments. Correct if ranges from 1 to 5 (all integers) and there are values in each
+plot(analysis.data$Difficulty)
+#get trial count for each group. Correct if 1to1Face is 1140 (57 participants*20 trials) and Super is 260 (13 participants*20 trials)
+with(analysis.data,tapply(Images, Group, length))
+```
+
+# Identity judgment distributions
+
+Histograms of the distribution of ratings Examiner and Super-recognizer groups. The histograms are separated by same-identity (Match) pairs and different-identity (Non-match) pairs. The histogram is computed over all ratings from all image-pairs for all members of a group.
+
+## Back to back histograms
+```{r back2backHist responses,fig.height=5,fig.width=12}
+backToBackHist.data<-analysis.data %>%
+  group_by(Group,Scores,mateBinary) %>%
+  summarise(n=n()) %>%
+  group_by(Group,mateBinary) %>%
+  mutate(prop.resp=n/sum(n)) %>%
+  ungroup() %>%
+  mutate(plotVal=ifelse(mateBinary==1,-1*prop.resp,prop.resp)) #allows symmetrical x-axis
+
+plot1.temp<-ggplot(backToBackHist.data[backToBackHist.data$Group=="1to1Face",],aes(Scores,plotVal,fill=fct_rev(as.factor(mateBinary)))) +
+  geom_col(width=1,color="black")+
+  scale_x_continuous(name="Identity judgment",breaks=seq(-3,3,1))+
+  scale_y_continuous(name="Proportion",limits = c(-.4,.4),breaks = seq(-.4,.4,.2),labels=c("0.4","0.2","0.0","0.2","0.4"))+
+  scale_fill_manual(breaks=c(1,0),limits=c(1,0),labels=c("Same ID","Different ID"),values = colorblind.blues,name="Trial Type") +
+  labs(title="Facial Examiners") + 
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5),
+        text=element_text(size=15),
+        axis.text.x = element_text(size = 13),
+        axis.text.y = element_text(size=13))+
+  coord_flip()
+
+plot2.temp<-ggplot(backToBackHist.data[backToBackHist.data$Group=="Super",],aes(Scores,plotVal,fill=fct_rev(as.factor(mateBinary)))) +
+  geom_col(width=1,color="black")+
+  scale_x_continuous(name="Identity judgment",breaks=seq(-3,3,1))+
+  scale_y_continuous(name="Proportion",limits = c(-.4,.4),breaks = seq(-.4,.4,.2),labels=c("0.4","0.2","0.0","0.2","0.4"))+
+  scale_fill_manual(breaks=c(1,0),limits=c(1,0),labels=c("Same ID","Different ID"),values = colorblind.blues,name="Trial Type")+
+  labs(title="Super-recognizers",fill="Trial Type") + 
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5),text=element_text(size=15),
+        axis.title.y=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank()) +
+  coord_flip()
+
+ggarrange(plot1.temp,plot2.temp,common.legend = TRUE,legend = "bottom")
+rm(plot1.temp,plot2.temp)
+```
+
+## Statistical analysis
+Two-sample Kolmogorov–Smirnov tests (KS test) 
+
+**Examiner vs. Super: Same-identity**
+
+```{r kstest exam vs super match}
+with(analysis.data,suppressWarnings(ks.test(Scores[Group=="1to1Face" & mateBinary == "1"],Scores[Group=="Super" & mateBinary == "1"])))
+```
+
+**Examiner vs. Super: Different-identity**
+
+```{r kstest exam vs super nonmatch}
+with(analysis.data,suppressWarnings(ks.test(Scores[Group=="1to1Face" & mateBinary == "0"],Scores[Group=="Super" & mateBinary == "0"])))
+```
+
+**Examiner: Same- vs. Different-identity**
+
+```{r kstest examiner m v nm}
+subset1<-analysis.data$Scores[analysis.data$Group=="1to1Face" & analysis.data$mateBinary=="1"]
+subset2<-analysis.data$Scores[analysis.data$Group=="1to1Face" & analysis.data$mateBinary=="0"]*-1 #reversed for mirrored judgments
+
+ks.test(subset1,subset2)
+rm(subset1,subset2)
+```
+
+**Super-recognizer: Same- vs. Different-identity**
+```{r kstest super m v nm}
+subset1<-analysis.data$Scores[analysis.data$Group=="Super" & analysis.data$mateBinary=="1"]
+subset2<-analysis.data$Scores[analysis.data$Group=="Super" & analysis.data$mateBinary=="0"]*-1 #reversed for mirrored judgments
+
+ks.test(subset1,subset2)
+rm(subset1,subset2)
+```
+
+## High and Low Confidence
+
+The number of times highly confident ratings (+3 or -3) and midpoint ratings (0) were made across different participant groups. We computed the number of times a response of +/-3 was made for each participant. Separately, we computed the number of times a response of 0 was made for each participant. Each of these were divided by the total number of trials (20) for each participant. This is the reported proportion of responses.
+
+A corresponding figure appears in supplemental materials of this script and the paper.
+
+### Descriptive statistics
+```{r high low confidence descriptive statistics}
+analysis.data %>%
+  group_by(SubID,Group,Scores) %>%
+  tally() %>%
+  spread(Scores,n) %>%
+  replace(., is.na(.), 0) %>%
+  group_by(SubID) %>%
+  mutate(total3=sum(`-3`,`3`),
+         totaln=sum(`-3`,`-2`,`-1`,`0`,`1`,`2`,`3`),
+         proportion3=total3/totaln,
+         proportion0=`0`/totaln) %>%
+  group_by(Group) %>%
+  summarise(mean3=mean(proportion3),
+            sd3=sd(proportion3),
+            mean0=mean(proportion0),
+            sd0=sd(proportion0)) %>%
+  kable(col.names = c("Group","Mean: +/-3","SD: +/-3","Mean: 0","SD: 0"),caption = "Mean judgments by group: high confidence and scale midpoint",digits=2) %>%
+  kable_styling(bootstrap_options = "striped", full_width = FALSE)
+```
+
+### Statistical analysis
+Compare 1) the proportion of high confidence judgments between facial examiners and super-recognizers and 2) the proportion of midpoint judgments between facial examiners and super-recognizers. Note these are both collapsed across trial type.
+
+Effect size: r statistic (e.g., pg. 123; Seigal & Castellan (1956) Nonparametric statistics for the behavioral sciences (2nd))
+
+#### High confidence
+```{r high conf all trial mann whit}
+analysis.data %>%
+  group_by(SubID,Group,Scores) %>%
+  tally() %>%
+  spread(Scores,n) %>%
+  replace(., is.na(.), 0) %>%
+  group_by(SubID) %>%
+  mutate(total3=sum(`-3`,`3`),
+         totaln=sum(`-3`,`-2`,`-1`,`0`,`1`,`2`,`3`),
+         proportion3=total3/totaln,
+         proportion0=`0`/totaln) %>%
+  ttestIS(formula = proportion3 ~ Group, data = .,mann = TRUE,effectSize = TRUE,ci=TRUE)
+
+# Effect size
+analysis.data %>%
+  group_by(SubID,Group,Scores) %>%
+  tally() %>%
+  spread(Scores,n) %>%
+  replace(., is.na(.), 0) %>%
+  group_by(SubID) %>%
+  mutate(total3=sum(`-3`,`3`),
+         totaln=sum(`-3`,`-2`,`-1`,`0`,`1`,`2`,`3`),
+         proportion3=total3/totaln,
+         proportion0=`0`/totaln) %>%
+  wilcoxonR(x=.$proportion3,g=.$Group)
+```
+
+#### Midpoint (Low confidence)
+```{r low conf all trial mann whit}
+analysis.data %>%
+  group_by(SubID,Group,Scores) %>%
+  tally() %>%
+  spread(Scores,n) %>%
+  replace(., is.na(.), 0) %>%
+  group_by(SubID) %>%
+  mutate(total3=sum(`-3`,`3`),
+         totaln=sum(`-3`,`-2`,`-1`,`0`,`1`,`2`,`3`),
+         proportion3=total3/totaln,
+         proportion0=`0`/totaln) %>%
+  ttestIS(formula = proportion0 ~ Group, data = .,mann = TRUE,effectSize = TRUE,ci=TRUE)
+
+# Effect size
+analysis.data %>%
+  group_by(SubID,Group,Scores) %>%
+  tally() %>%
+  spread(Scores,n) %>%
+  replace(., is.na(.), 0) %>%
+  group_by(SubID) %>%
+  mutate(total3=sum(`-3`,`3`),
+         totaln=sum(`-3`,`-2`,`-1`,`0`,`1`,`2`,`3`),
+         proportion3=total3/totaln,
+         proportion0=`0`/totaln) %>%
+  wilcoxonR(x=.$proportion0,g=.$Group)
+```
+
+### Plot 
+```{r proportion conf}
+
+# Plot
+plot1.temp<-analysis.data %>%
+  group_by(SubID,Group,Scores) %>%
+  tally() %>%
+  spread(Scores,n) %>%
+  replace(., is.na(.), 0) %>%
+  group_by(SubID) %>%
+  mutate(total3=sum(`-3`,`3`),
+         totaln=sum(`-3`,`-2`,`-1`,`0`,`1`,`2`,`3`),
+         proportion3=total3/totaln,
+         proportion0=`0`/totaln) %>%
+  ggplot(.,aes(x=Group,y=proportion3))+
+  geom_dotplot(binaxis='y', stackdir='center', dotsize=.2,binwidth = 0.05,stackratio = 1,alpha=.5)+
+  stat_summary(fun=mean, geom="point", size=5,shape=18,,color="blue")+ 
+  stat_summary(fun=median, geom="point", size=5,shape=19,color="red")+
+  ylim(0,1)+
+  scale_x_discrete(breaks=c("1to1Face","Super"),label=c("Examiners","Super-rec."))+
+  theme_minimal()+
+  labs(fill="Trial Type",y="Proportion of judgments",title="High confidence ('+/-3') identity judgments")
+
+plot2.temp<-analysis.data %>%
+  group_by(SubID,Group,Scores) %>%
+  tally() %>%
+  spread(Scores,n) %>%
+  replace(., is.na(.), 0) %>%
+  group_by(SubID) %>%
+  mutate(total3=sum(`-3`,`3`),
+         totaln=sum(`-3`,`-2`,`-1`,`0`,`1`,`2`,`3`),
+         proportion3=total3/totaln,
+         proportion0=`0`/totaln) %>%
+  ggplot(.,aes(x=Group,y=proportion0))+
+  geom_dotplot(binaxis='y', stackdir='center', dotsize=.2,binwidth = 0.05,stackratio = 1,alpha=.5)+
+  stat_summary(fun=mean, geom="point", size=5,shape=18,,color="blue")+ 
+  stat_summary(fun=median, geom="point", size=5,shape=19,color="red")+
+  ylim(0,1)+
+  scale_x_discrete(breaks=c("1to1Face","Super"),label=c("Examiners","Super-rec."))+
+  theme_minimal()+
+  labs(fill="Trial Type",y="Proportion of judgments",title="Midpiont ('0') identity judgments")
+
+ggarrange(plot1.temp,plot2.temp)
+rm(plot1.temp,plot2.temp)
+
+```
+
+
+# Identity judgment agreement
+
+Inter-rater reliability is measured within participant groups with Fleiss's Kappa (Gwent, Handbook of Inter-rater Reliability) to account for ordinal data. Instructions are available from: http://www.agreestat.com/software/r/new/readme_r_functions.pdf. Appendix B, page 10 
+
+Agreement was measured with Fleiss's Weighted Kappa between two participants from the same group. Every possible pair was compared. Each unique combinations were created, with the number of combinations being restricted by the number of participants in the full participant group:  
+  
+For 57 Examiners, there are 1,596 possible combinations. 1,596 unique groups were created.  
+For 13 super-recognizers, there are 78 possible combinations. 78 unique groups were created.
+
+```{r compute pairwise kappa}
+
+kappa.pairwise.examiners<-do.pairwise.kappa(analysis.data,'1to1Face')
+kappa.pairwise.supers<-do.pairwise.kappa(analysis.data,'Super')
+
+```
+
+### Descriptive statistics
+```{r pairwise kappa descriptive statistics}
+
+kappa.pairwise.examiners %>%
+  summarise(mean=mean(kappa.coeff),
+            sd=sd(kappa.coeff)) %>%
+  kable(caption = "Examiners: Mean and SD of pairwise Kappa",digits = 2) %>%
+  kable_styling(bootstrap_options = "striped", full_width = FALSE)
+
+kappa.pairwise.supers %>%
+  summarise(mean=mean(kappa.coeff),
+            sd=sd(kappa.coeff)) %>%
+  kable(caption = "Super-rec.: Mean and SD of pairwise Kappa",digits = 2) %>%
+  kable_styling(bootstrap_options = "striped", full_width = FALSE)
+```
+
+### Plot
+```{r pairwise kappa plots}
+kappa.pairwise.examiners$group<-"examiner"
+kappa.pairwise.supers$group<-"super"
+
+ggplot(rbind(kappa.pairwise.examiners,kappa.pairwise.supers),aes(x=group,y=kappa.coeff))+
+  geom_violin()+
+  stat_boxplot(geom ='errorbar',width=.05,color="darkblue")+
+  geom_boxplot(color="darkblue",width=.2)+
+  stat_mean(color="red",size=4,pch=18)+
+  scale_x_discrete(name="Group",limits=c("examiner","super"),labels=c("Examiners","Super-rec"))+
+  labs(y=expression(hat(Kappa)*minute["c"]))+
+  theme_classic() + 
+  theme(axis.text.x = element_text(size = 13),
+        axis.text.y = element_text(size=13),
+        axis.title.x = element_text(size=15),
+        axis.title.y = element_text(size=15))
+
+```
+
+## Statistical analysis
+
+To examine whether pairwise examiner agreement was different than super-recognizer pairwise agreement, a bootstrap procedure was executed.
+
+* Step 1: Randomly select from 20 images with replacement
+* 2a: Compute pairwise agreement between all possible combinations of examiners
+* 2b: Compute pairwise agreement between all possible combinations of super-recognizers
+* 3a: Compute average agreement of examiners from 2a
+* 3b: Compute average agreement of super-recognizers from 2b
+* 4: Compute difference between to average agreement values from 3a and 3b -> save value from this iteration
+* 5: Repeat 1-4 1000x
+
+```{r pairwise kappa plots analysis}
+##
+# DONE ONCE, OUTPUT SAVED, THEN COMMENTED OUT
+#This makes future knitting much faster
+#Code is retained for record keeping and reproduciblility
+##
+
+# ##initialize
+# n.boot.iter<-1000
+# pb <- progress_bar$new(total = n.boot.iter)
+# kappa.diff<-matrix(NA,nrow = n.boot.iter)
+# 
+# #sum used here because only one value per score,image,ID. So sum = true score provided
+# raters.matrix.examiners<-with(droplevels(analysis.data[analysis.data$Group=='1to1Face',]),tapply(Scores,list(Images,SubID),sum,check.names=FALSE))
+# raters.matrix.super<-with(droplevels(analysis.data[analysis.data$Group=='Super',]),tapply(Scores,list(Images,SubID),sum,check.names=FALSE))
+# 
+# #get all possible combinations (non repeating) for examiners and super-recognizers separately
+# pairs.labels.examiners<-combn(colnames(raters.matrix.examiners),2) %>%
+#     t() %>%
+#     as_tibble(.,.name_repair="universal") %>%
+#     rename(SubID1=...1,SubID2=...2)
+# 
+# pairs.labels.super<-combn(colnames(raters.matrix.super),2) %>%
+#     t() %>%
+#     as_tibble(.,.name_repair="universal") %>%
+#     rename(SubID1=...1,SubID2=...2)
+# 
+# ##Set seeds for each iteration - this was done once, saved to seeds_for_pairwise.rds, then commented out. Code itself is retained for record keeping. The rds output from this code is loaded at the beginning of this script. 
+# #rand.select.seeds<-data.frame(iteration=1:n.boot.iter,seed=sample(1:10000,n.boot.iter , replace=T))
+# #saveRDS(rand.select.seeds, "seeds_for_pairwise.rds")
+# 
+# for(i in 1:n.boot.iter){
+#   set.seed(saved.seeds$seed[i]) #determines the seed for random sampling in next line
+#   ind.imgs<-sample(20,replace = TRUE) #indices of selected images
+# 
+#   #get ratings for selected images
+#   raters.examiner.ind<-data.frame(raters.matrix.examiners[ind.imgs,]) 
+#   raters.super.ind<-data.frame(raters.matrix.super[ind.imgs,])
+#   
+#   #compute difference in agreement _for those selected images_
+#   kappa.diff[i]<-do.pairwise.kappa.boot(raters.examiner.ind,raters.super.ind,pairs.labels.examiners,pairs.labels.super)
+#   
+#   pb$tick() #update progress bar
+# }#end bootstrap loop
+# 
+# saveRDS(kappa.diff,file="bootstrapped_kappa_differences.rds")
+#####DONE ABOVE. OUTPUT IS LOADED BELOW.
+#This makes future knitting much faster
+
+#Load. This .rds was produced using the code above. Doing once above then loading makes future knitting much faster
+bootstrapped_kappa_differences<-readRDS("bootstrapped_kappa_differences.rds")
+bootstrapped_kappa_differences<-as.data.frame(bootstrapped_kappa_differences)
+colnames(bootstrapped_kappa_differences)<-"kappa.diff"
+
+#Analysis
+top.bottom.tail<-quantile(bootstrapped_kappa_differences$kappa.diff,probs=c(.025,.975))
+
+ggplot(bootstrapped_kappa_differences,aes(x=kappa.diff))+ 
+  geom_histogram(color="blue",fill="lightblue",bins = 50)+
+  geom_vline(xintercept =top.bottom.tail[1],lty="dashed")+
+  geom_vline(xintercept =top.bottom.tail[2],lty="dashed")+
+  labs(x=expression("Difference in " *hat(Kappa)*minute["c"]),y="Frequency") +
+  theme_classic()
+
+print("Top and Bottom Tails")
+top.bottom.tail
+
+#Report whether or not statistically significant
+if (top.bottom.tail[1]<=0){
+  print("not significant")
+} else {
+  print("significant")
+}
+
+```
+
+
+# Relationship between measures
+
+## Confidence vs. Difficulty
+
+### Trial level 
+The relationship between difficulty ratings and identity judgment (regardless of direction of the score +/-3). This was done at the level of the trial. This addresses the question: Is difficulty rating associated with absolute value of the score (confidence)? This was measured with Kendall's tau.
+
+#### Plot
+```{r diff vs score plot trial level}
+
+plot1.temp<-analysis.data %>%
+  filter(Group=="1to1Face") %>%
+  mutate(mateBinary=as.factor(mateBinary),
+         Difficulty=as.factor(Difficulty)) %>%
+  ggplot(.,aes(y=Scores,x=Difficulty,color=fct_rev(mateBinary)))+
+  geom_point(position=position_jitter(h=0.15,w=0.15),alpha=.66)+
+  scale_y_continuous(breaks=seq(-3,3,by=1))+
+  scale_color_manual(values=c("orange","blue"),breaks=c("1","0"),labels=c("Same-ID","Different-ID"),name="Trial Type")+
+  ggtitle("Facial Examiners")+
+  labs(x="Rated difficulty",y="Identity judgment")+
+  theme_minimal()+
+  theme(axis.text.x = element_text(size = 13),
+        axis.text.y = element_text(size=13),
+        axis.title.x = element_text(size=15),
+        axis.title.y = element_text(size=15),
+        plot.title = element_text(size=15,hjust = 0.5))
+
+plot2.temp<-analysis.data %>%
+  filter(Group=="Super") %>%
+  mutate(mateBinary=as.factor(mateBinary),
+         Difficulty=as.factor(Difficulty)) %>%
+  ggplot(.,aes(y=Scores,x=Difficulty,color=fct_rev(mateBinary)))+
+  geom_point(position=position_jitter(h=0.15,w=0.15),alpha=.66)+
+  scale_y_continuous(breaks=seq(-3,3,by=1))+
+  scale_color_manual(values=c("orange","blue"),breaks=c("1","0"),labels=c("Same-ID","Different-ID"),name="Trial Type")+
+  ggtitle("Super-recognizers")+
+  labs(x="Rated difficulty",y="Identity judgment")+
+  theme_minimal()+
+  theme(axis.text.x = element_text(size = 13),
+        axis.text.y = element_text(size=13),
+        axis.title.x = element_text(size=15),
+        axis.title.y = element_text(size=15),
+        plot.title = element_text(size=15,hjust = 0.5))
+
+ggarrange(plot1.temp,plot2.temp,common.legend = TRUE,legend="bottom")
+rm(plot1.temp,plot2.temp)
+
+```
+  
+#### Statistical analysis  
+
+Compute kendall's tau correlation between difficulty rating and absolute value of the identity judgments (confidence).
+
+```{r diff v conf trial level}
+
+analysis.data %>%
+  group_by(Group) %>% 
+  summarise(tau=cor(Difficulty,abs(Scores),method = "kendall"),
+            p=suppressWarnings(cor.test(Difficulty,abs(Scores),method = "kendall")[["p.value"]]))
+
+```
+
+### Individual level
+
+Compute mean confidence and mean difficulty per subject. Produce plot and compute Kendall's tau correlation between the two.
+
+#### Plot
+```{r diff v conf individual plot}
+analysis.data %>%
+  group_by(Group,SubID) %>% 
+  summarise(conf=mean(abs(Scores)),
+            diff=mean(Difficulty)) %>%
+  ggplot(.,aes(diff,conf,color=Group,shape=Group))+
+  geom_point(size=3) +
+  xlim(1,5)+
+  ylim(0,3)+
+  scale_color_manual(breaks=c("1to1Face","Super"),label=c("Examiners","Super-rec."),values=c(brewer.pal(n = 7,name = "Blues")[3],brewer.pal(n = 7,name = "Blues")[7]),guide="none")+
+  guides(color = guide_legend(override.aes = list(shape = c(19,17))))+
+  scale_shape_discrete(guide="none")+
+  labs(y="Mean confidence",x="Mean rated difficulty")+
+  theme_minimal()+
+  theme(axis.text.x = element_text(size = 13),
+        axis.text.y = element_text(size=13),
+        axis.title.x = element_text(size=15),
+        axis.title.y = element_text(size=15))
+```
+  
+#### Statistical analysis  
+```{r conf v diff indiv stats}
+
+analysis.data %>%
+  group_by(Group,SubID) %>% 
+  summarise(conf=mean(abs(Scores)),
+            diff=mean(Difficulty)) %>%
+  group_by(Group) %>%
+  summarise(tau=cor(conf,diff,method = "kendall"),
+            p=suppressWarnings(cor.test(conf,diff,method = "kendall")[["p.value"]]))
+
+
+```
+
+
+## Confidence vs. Accuracy 
+  
+Correlation (Kendall's tau) between absolute value of responses (i.e., magnitude of decisions made) and AUC. The average confidence (average absolute value of response) was obtained per participant. The AUC was obtained per participant. Correlations were computed between the two, separately for examiners and super-recognizers.  
+
+
+### Statistical analysis
+```{r conf v acc correlation}
+
+analysis.data %>% 
+  group_by(SubID,Group) %>% 
+  summarise(conf=mean(abs(Scores)),
+            auc=auc.w(Scores[mateBinary==1],Scores[mateBinary==0])) %>%
+  group_by(Group) %>% 
+  summarise(tau=cor(conf,auc,method = "kendall"),
+            p.val=cor.test(conf,auc,method = "kendall")[["p.value"]]) %>% 
+  kable(digits=3) %>%
+  kable_styling(bootstrap_options = "striped", full_width = FALSE)
+
+```
+
+## Difficulty vs. Accuracy
+Correlation (Kendall's tau) between rated difficulty and AUC. The average rated difficulty was obtained per participant. The AUC was obtained per participant. Correlations were computed between the two, separately for examiners and super-recognizers.  
+
+Difficulty rating scale:  
+    1. Easy: The comparison was easier than most facial comparisons.  
+    2. Moderate: The comparison was a typical facial comparison.  
+    3. Difficult: The comparison was more difficult than most facial comparisons.  
+    4. Very difficult: The comparison was unusually difficult, involving significant photometric illumination, or pose changes, other red flags.  
+    5. Not Possible: The comparison was virtually impossible, due to a lack of detail in the image(s).
+
+### Statistical analysis
+```{r diff v acc correlation}
+
+analysis.data %>% 
+  group_by(SubID,Group) %>% 
+  summarise(diff=mean(Difficulty),
+            auc=auc.w(Scores[mateBinary==1],Scores[mateBinary==0])) %>%
+  group_by(Group) %>% 
+  summarise(tau=cor(diff,auc,method = "kendall"),
+            p.val=cor.test(diff,auc,method = "kendall")[["p.value"]]) %>% 
+  kable(digits=3) %>%
+  kable_styling(bootstrap_options = "striped", full_width = FALSE)
+
+```
+
+## Combined Confidence and Difficulty 
+
+Combined plot: The relationship between 1) confidence and accuracy, and 2) difficulty and accuracy
+
+### Plot
+```{r conf and diff v accuracy plot}
+
+plot1.temp<-analysis.data %>% 
+  group_by(SubID,Group) %>% 
+  summarise(conf=mean(abs(Scores)),
+            diff=mean(Difficulty),
+            auc=auc.w(Scores[mateBinary==1],Scores[mateBinary==0])) %>%
+  ggplot(.,aes(conf,auc,color=Group,shape=Group))+
+  geom_point(size=3)+
+  xlim(0,3)+
+  ylim(.5,1)+
+  scale_color_manual(breaks=c("1to1Face","Super"),label=c("Examiners","Super-rec."),values=c(brewer.pal(n = 7,name = "Blues")[3],brewer.pal(n = 7,name = "Blues")[7]),guide="none")+
+  guides(color = guide_legend(override.aes = list(shape = c(19,17))))+
+  scale_shape_discrete(guide="none")+
+  labs(x="Mean confidence",y="AUC")+
+  theme_minimal()+
+  theme(axis.text.x = element_text(size = 13),
+        axis.text.y = element_text(size=13),
+        axis.title.x = element_text(size=15),
+        axis.title.y = element_text(size=15))
+
+plot2.temp<-analysis.data %>% 
+  group_by(SubID,Group) %>% 
+  summarise(conf=mean(abs(Scores)),
+            diff=mean(Difficulty),
+            auc=auc.w(Scores[mateBinary==1],Scores[mateBinary==0])) %>%
+  ggplot(.,aes(diff,auc,color=Group,shape=Group))+
+  geom_point(size=3)+
+  ylim(.5,1)+
+  xlim(1,5)+
+  scale_color_manual(breaks=c("1to1Face","Super"),label=c("Examiners","Super-rec."),values=c(brewer.pal(n = 7,name = "Blues")[3],brewer.pal(n = 7,name = "Blues")[7]),guide=FALSE)+
+  guides(color = guide_legend(override.aes = list(shape = c(19,17))))+
+  scale_shape_discrete(guide=FALSE)+
+  labs(x="Mean rated difficulty",y="AUC")+
+  theme_minimal() +
+  theme(axis.text.x = element_text(size = 13),
+        axis.text.y = element_text(size=13),
+        axis.title.x = element_text(size=15),
+        axis.title.y = element_text(size=15))
+
+ggarrange(plot1.temp,plot2.temp,common.legend = TRUE,legend="bottom")
+rm(plot1.temp,plot2.temp)
+```
+
+
+# Supplemental 
+
+
+## Difficulty ratings
+
+Difficulty rating scale:  
+    1. Easy: The comparison was easier than most facial comparisons.  
+    2. Moderate: The comparison was a typical facial comparison.  
+    3. Difficult: The comparison was more difficult than most facial comparisons.  
+    4. Very difficult: The comparison was unusually difficult, involving significant photometric illumination, or pose changes, other red flags.  
+    5. Not Possible: The comparison was virtually impossible, due to a lack of detail in the image(s).  
+
+The graph below shows the back to back histogram for the distribution of difficulty ratings for each group.  
+
+### Plot
+```{r difficulty rating dist,fig.height=5,fig.width=12}
+
+backToBackHist.diff.data<-analysis.data %>%
+  group_by(Group,Difficulty,mateBinary) %>%
+  summarise(n=n()) %>%
+  group_by(Group,mateBinary) %>%
+  mutate(prop.resp=n/sum(n)) %>%
+  ungroup() %>%
+  mutate(plotVal=ifelse(mateBinary==1,-1*prop.resp,prop.resp))
+
+
+plot1.temp<-ggplot(backToBackHist.diff.data[backToBackHist.diff.data$Group=="1to1Face",],aes(Difficulty,plotVal,fill=fct_rev(as.factor(mateBinary)))) +
+  geom_col(width=1,color="black")+
+  scale_x_continuous(name="Difficulty rating",breaks=seq(1,5,1))+
+  scale_y_continuous(name="Proportion",limits = c(-.5,.5),breaks = seq(-.5,.5,.2),labels=c("0.5","0.3","0.1","0.1","0.3","0.5"))+
+  scale_fill_manual(breaks=c(1,0),limits=c(1,0),labels=c("Same ID","Different ID"),values = c(brewer.pal(n = 7,name="Blues")[2],brewer.pal(n = 7,name="Blues")[7]),name="Trial Type") +
+  labs(title="Facial Examiners") + 
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5),
+        text=element_text(size=15),
+        axis.text.x = element_text(size = 13),
+        axis.text.y = element_text(size=13))+
+  coord_flip()
+
+plot2.temp<-ggplot(backToBackHist.diff.data[backToBackHist.diff.data$Group=="Super",],aes(Difficulty,plotVal,fill=fct_rev(as.factor(mateBinary)))) +
+  geom_col(width=1,color="black")+
+  scale_x_continuous(name="Difficulty rating",breaks=seq(1,5,1))+
+  scale_y_continuous(name="Proportion",limits = c(-.5,.5),breaks = seq(-.5,.5,.2),labels=c("0.5","0.3","0.1","0.1","0.3","0.5"))+
+  scale_fill_manual(breaks=c(1,0),limits=c(1,0),labels=c("Same ID","Different ID"),values = c(brewer.pal(n = 7,name="Blues")[2],brewer.pal(n = 7,name="Blues")[7]),name="Trial Type") +
+  labs(title="Super-recognizers") + 
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5),
+        text=element_text(size=15),
+        axis.text.x = element_text(size = 13),
+        axis.text.y = element_text(size=13))+
+  coord_flip()
+
+ggarrange(plot1.temp,plot2.temp,common.legend = TRUE,legend = "bottom")
+rm(plot1.temp,plot2.temp)
+
+```
+
+### Statisical analysis: Distributions
+
+Two-sample Kolmogorov–Smirnov tests (KS test) 
+
+**Examiner vs. Super: Same-identity**
+
+```{r kstest diff exam vs super match}
+
+with(analysis.data,suppressWarnings(ks.test(Difficulty[Group=="1to1Face" & mateBinary == "1"],Difficulty[Group=="Super" & mateBinary == "1"])))
+
+```
+
+**Examiner vs. Super: Diffrent-identity**
+
+```{r kstest diff exam vs super nonmatch}
+
+with(analysis.data,suppressWarnings(ks.test(Difficulty[Group=="1to1Face" & mateBinary == "0"],Difficulty[Group=="Super" & mateBinary == "0"])))
+
+```
+
+**Examiner: Same- vs. Different-identity**
+
+```{r kstest diff examiner m v nm}
+
+with(analysis.data,suppressWarnings(ks.test(Difficulty[Group=="1to1Face" & mateBinary == "1"],Difficulty[Group=="1to1Face" & mateBinary == "0"])))
+
+```
+
+**Super-recognizer: Same- vs. Different-identity**
+```{r kstest diff super m v nm}
+
+with(analysis.data,suppressWarnings(ks.test(Difficulty[Group=="Super" & mateBinary == "1"],Difficulty[Group=="Super" & mateBinary == "0"])))
+
+```
+
+### Percent of each rating
+This is the percent of trials in which a given difficulty rating was provided.
+
+```{r diff percent ratings}
+
+analysis.data %>%
+  group_by(Group,Difficulty) %>%
+  tally() %>%
+  group_by(Group) %>%
+  mutate(perc=n/sum(n)*100) %>%
+  kable(digits = 2,col.names = c("Group","Difficulty","N judgments","Percent judgments"),caption = "Percent of difficulty ratings") %>%
+  kable_styling(bootstrap_options = "striped", full_width = FALSE)
+
+```
+
+### Average difficulty ratings
+
+Compute average difficulty ratings according to participant group and trial type (same or different-identity).
+
+#### Tables and Plots
+
+```{r diff descriptives and plot diff}
+#Main effect group
+analysis.data %>% 
+  group_by(SubID,Group) %>% 
+  summarise(diff=mean(Difficulty)) %>%
+  group_by(Group) %>% 
+  summarise(Mean=mean(diff),
+            SD=sd(diff)) %>% 
+  kable(digits = 2,caption = "Difficulty: Main effect of group") %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE)
+
+#Main effect Trial Type
+analysis.data %>% 
+  group_by(SubID,mateBinary) %>% 
+  summarise(diff=mean(Difficulty)) %>%
+  group_by(mateBinary) %>% 
+  summarise(Mean=mean(diff),
+            SD=sd(diff)) %>% 
+  kable(digits = 2,caption = "Difficulty: Main effect of trial type") %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE)
+
+#Interaction: Group x Trial Type
+analysis.data %>% 
+  group_by(SubID,Group,mateBinary) %>% 
+  summarise(diff=mean(Difficulty)) %>%
+  group_by(Group,mateBinary) %>% 
+  summarise(Mean=mean(diff),
+            SD=sd(diff)) %>% 
+  kable(digits = 2,caption = "Difficulty: Group x Trial Type") %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE)
+
+
+# Plot
+analysis.data %>% 
+  group_by(SubID,Group,mateBinary) %>% 
+  summarise(diff=mean(Difficulty)) %>%
+  ggplot(.,aes(x=Group,y=diff,fill=fct_rev(mateBinary)))+
+  geom_dotplot(binaxis='y', stackdir='center', dotsize=.5,binwidth = 0.1,stackratio = 1,alpha=.7,position=position_dodge(0.8))+
+  ylim(1,5)+
+  stat_summary(fun=mean, geom="point", size=4,shape=23,position = position_dodge(.8))+
+  scale_x_discrete(breaks=c("1to1Face","Super"),label=c("Examiners","Super-rec."))+
+  scale_fill_manual(limits=c("1","0"),label=c("Same-ID","Different-ID"),values=c(brewer.pal(n = 7,name="Blues")[2],brewer.pal(n = 7,name="Blues")[7]))+
+  labs(fill="Trial Type",y="Mean Difficulty")+
+  theme_minimal()+
+  theme(axis.text.x = element_text(size = 13),
+        axis.text.y = element_text(size=13),
+        axis.title.x = element_text(size=15),
+        axis.title.y = element_text(size=15),
+        plot.title = element_text(size=15,hjust = 0.5))
+  
+
+```
+
+#### Statistical analysis
+
+```{r diff rating ANOVA}
+
+ez.res<-ezANOVA(analysis.data,dv = Difficulty,wid = SubID,within = mateBinary,between = Group,type = 3,detailed = TRUE)
+ez.res$ANOVA
+
+# Get MSe and p_eta^2
+main.group<-anova.supplemental(ez.res$ANOVA$DFn[2],ez.res$ANOVA$DFd[2],ez.res$ANOVA$SSn[2],ez.res$ANOVA$SSd[2])
+main.trial<-anova.supplemental(ez.res$ANOVA$DFn[3],ez.res$ANOVA$DFd[3],ez.res$ANOVA$SSn[3],ez.res$ANOVA$SSd[3])
+interaction.res<-anova.supplemental(ez.res$ANOVA$DFn[4],ez.res$ANOVA$DFd[4],ez.res$ANOVA$SSn[4],ez.res$ANOVA$SSd[4])
+
+data.frame(Effect=c("Group","Trial.type","Interaction"),rbind(data.frame(main.group),data.frame(main.trial),data.frame(interaction.res))) %>% 
+  kable(digits = 2,col.names = c("Effect","MSe","p_eta^2"),caption="ANOVA supplemental info") %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE)
+```
+
+# License
+NIST-developed software is provided by NIST as a public service. You may use, copy, and distribute copies of the software in any medium, provided that you keep intact this entire notice. You may improve, modify, and create derivative works of the software or any portion of the software, and you may copy and distribute such modifications or works. Modified works should carry a notice stating that you changed the software and should note the date and nature of any such change. Please explicitly acknowledge the National Institute of Standards and Technology as the source of the software. 
+
+NIST-developed software is expressly provided "AS IS." NIST MAKES NO WARRANTY OF ANY KIND, EXPRESS, IMPLIED, IN FACT, OR ARISING BY OPERATION OF LAW, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTY OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, AND DATA ACCURACY. NIST NEITHER REPRESENTS NOR WARRANTS THAT THE OPERATION OF THE SOFTWARE WILL BE UNINTERRUPTED OR ERROR-FREE, OR THAT ANY DEFECTS WILL BE CORRECTED. NIST DOES NOT WARRANT OR MAKE ANY REPRESENTATIONS REGARDING THE USE OF THE SOFTWARE OR THE RESULTS THEREOF, INCLUDING BUT NOT LIMITED TO THE CORRECTNESS, ACCURACY, RELIABILITY, OR USEFULNESS OF THE SOFTWARE.
+
+You are solely responsible for determining the appropriateness of using and distributing the software and you assume all risks associated with its use, including but not limited to the risks and costs of program errors, compliance with applicable laws, damage to or loss of data, programs or equipment, and the unavailability or interruption of operation. This software is not intended to be used in any situation where a failure could cause risk of injury or damage to property. The software developed by NIST employees is not subject to copyright protection within the United States.
+
+# Version and libraries
+Built with R version `r getRversion()`
+
+Libraries: 
+```{r}
+loaded.libraries<-(.packages())
+for (i in seq_along(loaded.libraries)) {
+  get.cite<-citation(loaded.libraries[i])
+  print(get.cite)
+  }
+
+```  
