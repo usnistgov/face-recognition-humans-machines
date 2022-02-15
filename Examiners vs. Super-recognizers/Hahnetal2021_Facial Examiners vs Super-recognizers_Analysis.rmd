@@ -507,10 +507,12 @@ plot1.temp<-analysis.data %>%
   filter(Group=="1to1Face") %>%
   mutate(mateBinary=as.factor(mateBinary),
          Difficulty=as.factor(Difficulty)) %>%
-  ggplot(.,aes(y=Scores,x=Difficulty,color=fct_rev(mateBinary)))+
+  ggplot(.,aes(y=Scores,x=Difficulty,color=fct_rev(mateBinary),shape=fct_rev(mateBinary)))+
   geom_point(position=position_jitter(h=0.15,w=0.15),alpha=.66)+
   scale_y_continuous(breaks=seq(-3,3,by=1))+
   scale_color_manual(values=c("orange","blue"),breaks=c("1","0"),labels=c("Same-ID","Different-ID"),name="Trial Type")+
+  guides(color = guide_legend(override.aes = list(shape = c(19,17))))+
+  scale_shape_discrete(guide="none")+
   ggtitle("Facial Examiners")+
   labs(x="Rated difficulty",y="Identity judgment")+
   theme_minimal()+
@@ -524,10 +526,12 @@ plot2.temp<-analysis.data %>%
   filter(Group=="Super") %>%
   mutate(mateBinary=as.factor(mateBinary),
          Difficulty=as.factor(Difficulty)) %>%
-  ggplot(.,aes(y=Scores,x=Difficulty,color=fct_rev(mateBinary)))+
+  ggplot(.,aes(y=Scores,x=Difficulty,color=fct_rev(mateBinary),shape=fct_rev(mateBinary)))+
   geom_point(position=position_jitter(h=0.15,w=0.15),alpha=.66)+
   scale_y_continuous(breaks=seq(-3,3,by=1))+
   scale_color_manual(values=c("orange","blue"),breaks=c("1","0"),labels=c("Same-ID","Different-ID"),name="Trial Type")+
+  guides(color = guide_legend(override.aes = list(shape = c(19,17))))+
+  scale_shape_discrete(guide="none")+
   ggtitle("Super-recognizers")+
   labs(x="Rated difficulty",y="Identity judgment")+
   theme_minimal()+
