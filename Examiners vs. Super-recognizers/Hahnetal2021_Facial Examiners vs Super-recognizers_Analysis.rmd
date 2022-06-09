@@ -8,7 +8,7 @@ output:
     toc_depth: 2
     code_folding: hide
 editor_options: 
-  chunk_output_type: console
+  chunk_output_type: inline
 ---
 <style>
 pre {
@@ -51,7 +51,7 @@ Download the corresponding R script Facial_Examiners_vs_Super-recognizers_Import
 
 Required R packages are shown in code.
 
-```{r load packages and source functions, include=FALSE}
+```{r load packages, include=FALSE}
 library(tidyverse)
 library(knitr)
 library(kableExtra)
@@ -62,13 +62,22 @@ library(jmv)
 library(rcompanion)
 library(R.utils)
 library(progress)
+```
+
+```{r source functions, include=FALSE}
 
 sourceDirectory("./Scripts/Agree_coefficients") #Will need to download from https://www.agreestat.com/software/default.html (see directions above)
 source("./Scripts/Facial_Examiners_vs_Super-recognizers_Imported_Functions.R")
 saved.seeds<-readRDS("seeds_for_pairwise.rds")
 
-theme_update(plot.title = element_text(hjust = 0.5))
 ```
+
+```{r set additional plot params, include=FALSE}
+
+theme_update(plot.title = element_text(hjust = 0.5))
+
+```
+
 
 
 ## Development and run conditions
@@ -182,39 +191,215 @@ ggarrange(plot1.temp,plot2.temp,common.legend = TRUE,legend = "bottom")
 rm(plot1.temp,plot2.temp)
 ```
 
-## Statistical analysis
+
+## Statistical analysis and cumulative distribution plots
 Two-sample Kolmogorov–Smirnov tests (KS test) 
 
-**Examiner vs. Super: Same-identity**
+**Facial examiners vs. Super-recognizers: Same-identity**
 
 ```{r kstest exam vs super match}
-with(analysis.data,suppressWarnings(ks.test(Scores[Group=="1to1Face" & mateBinary == "1"],Scores[Group=="Super" & mateBinary == "1"])))
+
+analysis.data %>% 
+  filter(mateBinary=="1") %>%
+  with(.,ks.test(Scores[Group=="Super"],Scores[Group=="1to1Face"])) %>% 
+  suppressWarnings()
+
+
+analysis.data %>% 
+  filter(mateBinary=="1") %>% 
+  droplevels() %>% 
+  ggplot(.,aes(x=Scores,color=Group,linetype=Group))+
+  stat_ecdf(geom="line",size=1.3)+
+  scale_x_continuous(name="Identity Judgment",breaks=seq(-3,3),labels=seq(-3,3))+
+  scale_color_manual(values=c(brewer.pal(n = 7,name="Blues")[2],brewer.pal(n = 7,name="Blues")[7]),
+                    limits=c("1to1Face","Super"),
+                    label=c("Facial examiners","Super-rec."),
+                    name="Group")+
+  scale_linetype_manual(values=c("solid","dotted"),
+                        limits=c("1to1Face","Super"),
+                        label=c("Facial examiners","Super-rec."),
+                        name="Group")+
+  ggtitle("Same-identity trials")+
+  labs(y="Cumulative Proportion")+
+  theme_classic()+
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.text.x = element_text(size=12),
+        axis.title.x = element_text(size=14),
+        axis.text.y = element_text(size=12),
+        axis.title.y = element_text(size=14))
+
 ```
 
-**Examiner vs. Super: Different-identity**
+**Facial examiners vs. Super-recognizers: Different-identity**
 
 ```{r kstest exam vs super nonmatch}
-with(analysis.data,suppressWarnings(ks.test(Scores[Group=="1to1Face" & mateBinary == "0"],Scores[Group=="Super" & mateBinary == "0"])))
+
+analysis.data %>% 
+  filter(mateBinary=="0") %>%
+  with(.,ks.test(Scores[Group=="Super"],Scores[Group=="1to1Face"])) %>% 
+  suppressWarnings()
+
+
+analysis.data %>% 
+  filter(mateBinary=="0") %>% 
+  droplevels() %>% 
+  ggplot(.,aes(x=Scores,color=Group,linetype=Group))+
+  stat_ecdf(geom="line",size=1.3)+
+  scale_x_continuous(name="Identity Judgment",breaks=seq(-3,3),labels=seq(-3,3))+
+  scale_color_manual(values=c(brewer.pal(n = 7,name="Blues")[2],brewer.pal(n = 7,name="Blues")[7]),
+                    limits=c("1to1Face","Super"),
+                    label=c("Facial examiners","Super-rec."),
+                    name="Group")+
+  scale_linetype_manual(values=c("solid","dotted"),
+                        limits=c("1to1Face","Super"),
+                        label=c("Facial examiners","Super-rec."),
+                        name="Group")+
+  ggtitle("Different-identity trials")+
+  labs(y="Cumulative Proportion")+
+  theme_classic()+
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.text.x = element_text(size=12),
+        axis.title.x = element_text(size=14),
+        axis.text.y = element_text(size=12),
+        axis.title.y = element_text(size=14))
+
+
 ```
 
-**Examiner: Same- vs. Different-identity**
+**Facial examiners: Same- vs. Different-identity**
 
 ```{r kstest examiner m v nm}
-subset1<-analysis.data$Scores[analysis.data$Group=="1to1Face" & analysis.data$mateBinary=="1"]
-subset2<-analysis.data$Scores[analysis.data$Group=="1to1Face" & analysis.data$mateBinary=="0"]*-1 #reversed for mirrored judgments
 
-ks.test(subset1,subset2)
-rm(subset1,subset2)
+analysis.data %>% 
+  filter(Group=="1to1Face") %>%
+  with(.,ks.test(Scores[mateBinary=="1"],Scores[mateBinary=="0"]*-1)) %>%
+  suppressWarnings()
+
+
+analysis.data %>% 
+  filter(Group=="1to1Face") %>%
+  mutate(mirroredScores=case_when(mateBinary=="0" ~ Scores*-1,
+                                  mateBinary=="1" ~ Scores)) %>%
+  ggplot(.,aes(x=mirroredScores,color=mateBinary,linetype=mateBinary))+
+  stat_ecdf(geom="line",size=1.3)+
+  scale_x_continuous(name="Identity Judgment",breaks=seq(-3,3),labels=seq(-3,3))+
+  scale_color_manual(values=c(brewer.pal(n = 7,name="Blues")[2],brewer.pal(n = 7,name="Blues")[7]),
+                    limits=c("1","0"),
+                    label=c("Same ID","Different ID (judgments mirrored)"),
+                    name="Trial Type")+
+  scale_linetype_manual(values=c("solid","dotted"),
+                        limits=c("1","0"),
+                        label=c("Same ID","Different ID (judgments mirrored)"),
+                        name="Trial Type")+
+  ggtitle("Facial examiners")+
+  labs(y="Cumulative Proportion")+
+  theme_classic()+
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.text.x = element_text(size=12),
+        axis.title.x = element_text(size=14),
+        axis.text.y = element_text(size=12),
+        axis.title.y = element_text(size=14))
+
+
+
 ```
 
 **Super-recognizer: Same- vs. Different-identity**
-```{r kstest super m v nm}
-subset1<-analysis.data$Scores[analysis.data$Group=="Super" & analysis.data$mateBinary=="1"]
-subset2<-analysis.data$Scores[analysis.data$Group=="Super" & analysis.data$mateBinary=="0"]*-1 #reversed for mirrored judgments
 
-ks.test(subset1,subset2)
-rm(subset1,subset2)
+```{r kstest super m v nm}
+analysis.data %>% 
+  filter(Group=="Super") %>%
+  with(.,ks.test(Scores[mateBinary=="1"],Scores[mateBinary=="0"]*-1)) %>%
+  suppressWarnings()
+
+
+analysis.data %>% 
+  filter(Group=="Super") %>%
+  mutate(mirroredScores=case_when(mateBinary=="0" ~ Scores*-1,
+                                  mateBinary=="1" ~ Scores)) %>%
+  ggplot(.,aes(x=mirroredScores,color=mateBinary,linetype=mateBinary))+
+  stat_ecdf(geom="line",size=1.3)+
+  scale_x_continuous(name="Identity Judgment",breaks=seq(-3,3),labels=seq(-3,3))+
+  scale_color_manual(values=c(brewer.pal(n = 7,name="Blues")[2],brewer.pal(n = 7,name="Blues")[7]),
+                    limits=c("1","0"),
+                    label=c("Same ID","Different ID (judgments mirrored)"),
+                    name="Trial Type")+
+  scale_linetype_manual(values=c("solid","dotted"),
+                        limits=c("1","0"),
+                        label=c("Same ID","Different ID (judgments mirrored)"),
+                        name="Trial Type")+
+  ggtitle("Super-recognizers")+
+  labs(y="Cumulative Proportion")+
+  theme_classic()+
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.text.x = element_text(size=12),
+        axis.title.x = element_text(size=14),
+        axis.text.y = element_text(size=12),
+        axis.title.y = element_text(size=14))
+
+
 ```
+
+**Same- vs. Different-identity: Combined plot**
+
+```{r cumulative plots combined}
+
+plot1.temp<-analysis.data %>% 
+  filter(Group=="1to1Face") %>%
+  mutate(mirroredScores=case_when(mateBinary=="0" ~ Scores*-1,
+                                  mateBinary=="1" ~ Scores)) %>%
+  ggplot(.,aes(x=mirroredScores,color=mateBinary,linetype=mateBinary))+
+  stat_ecdf(geom="line",size=1.3)+
+  scale_x_continuous(name="Identity Judgment",breaks=seq(-3,3),labels=seq(-3,3))+
+  scale_color_manual(values=c(brewer.pal(n = 7,name="Blues")[2],brewer.pal(n = 7,name="Blues")[7]),
+                    limits=c("1","0"),
+                    label=c("Same ID","Different ID (judgments mirrored)"),
+                    name="Trial Type")+
+  scale_linetype_manual(values=c("solid","dotted"),
+                        limits=c("1","0"),
+                        label=c("Same ID","Different ID (judgments mirrored)"),
+                        name="Trial Type")+
+  ggtitle("Facial examiners")+
+  labs(y="Cumulative Proportion")+
+  theme_classic()+
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.text.x = element_text(size=12),
+        axis.title.x = element_text(size=14),
+        axis.text.y = element_text(size=12),
+        axis.title.y = element_text(size=14))
+
+
+plot2.temp<-
+analysis.data %>% 
+  filter(Group=="Super") %>%
+  mutate(mirroredScores=case_when(mateBinary=="0" ~ Scores*-1,
+                                  mateBinary=="1" ~ Scores)) %>%
+  ggplot(.,aes(x=mirroredScores,color=mateBinary,linetype=mateBinary))+
+  stat_ecdf(geom="line",size=1.3)+
+  scale_x_continuous(name="Identity Judgment",breaks=seq(-3,3),labels=seq(-3,3))+
+  scale_color_manual(values=c(brewer.pal(n = 7,name="Blues")[2],brewer.pal(n = 7,name="Blues")[7]),
+                    limits=c("1","0"),
+                    label=c("Same ID","Different ID (judgments mirrored)"),
+                    name="Trial Type")+
+  scale_linetype_manual(values=c("solid","dotted"),
+                        limits=c("1","0"),
+                        label=c("Same ID","Different ID (judgments mirrored)"),
+                        name="Trial Type")+
+  ggtitle("Super-recognizers")+
+  labs(y="Cumulative Proportion")+
+  theme_classic()+
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.text.x = element_text(size=12),
+        axis.title.x = element_text(size=14),
+        axis.text.y = element_text(size=12),
+        axis.title.y = element_text(size=14))
+
+ggarrange(plot1.temp,plot2.temp,common.legend = TRUE,legend="bottom")
+rm(plot1.temp,plot2.temp)
+
+```
+
+
 
 ## High and Low Confidence
 

@@ -1,7 +1,19 @@
+# Ignore across all projects
+
 *.Rhistory
 
+*.Rproj
+
+*.RData
+
+.Rproj.user
+
 *.DS_Store
+
+# Ignore for Examiners vs. Super-recognizers
 
 Hahnetal_examiners_super-recognizers.rds
 
 Agree_coefficients/
+
+
