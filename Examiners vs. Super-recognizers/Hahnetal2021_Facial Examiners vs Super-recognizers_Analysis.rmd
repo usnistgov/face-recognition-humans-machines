@@ -83,7 +83,7 @@ theme_update(plot.title = element_text(hjust = 0.5))
 ## Development and run conditions
 Code was developed and run using RStudio on macOS. The analysis file is an R Markdown (.rmd) file. The .html document is its output.
 
-The code was developed with R version 4.1.2 and RStudio version 2021.09.0. Executing the .rmd file will output the current version being run at the time of execution in the section [Version and libraries].
+The final code was developed with R version `r getRversion()` and RStudio version `r rstudioapi::versionInfo()$version`. Executing the .rmd file will output the current version being run at the time of execution.
 
 For more information on RStudio and R Markdown, see https://www.rstudio.com and https://rmarkdown.rstudio.com. See [Running the script] for required scripts.
 
