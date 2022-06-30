@@ -10,6 +10,8 @@ output:
 editor_options: 
   chunk_output_type: inline
 ---
+
+```{=html}
 <style>
 pre {
   overflow-x: auto;
@@ -19,31 +21,31 @@ pre code {
   white-space: pre;
 }
 </style>
-
-
+```
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE,warning = FALSE,tidy=TRUE,dpi=300)
 options(width = 999)
 ```
 
-
 # About
-This is the analysis script for [Facial examiners vs. super-recognizers: Evaluating behavior beyond accuracy](https://psyarxiv.com/hq2ab/). Code here can be used to replicate results and figures. 
+
+This is the analysis script for [Facial examiners vs. super-recognizers: Evaluating behavior beyond accuracy](https://psyarxiv.com/hq2ab/). Code here can be used to replicate results and figures.
 
 Code is available as-is for informational purposes with no intent to provide software support.
 
-Corresponding author: Dr. Carina A. Hahn, <carina.hahn@nist.gov> 
+Corresponding author: Dr. Carina A. Hahn, [carina.hahn\@nist.gov](mailto:carina.hahn@nist.gov){.email}
 
 # Requirements
+
 Set working directory to Source File Location (referred to as HomeDir for explanation purposes). Source File location is the location of this analysis script.
 
-If first time using, download required scripts from from Kilem L. Gwet, Ph.D. at  https://www.agreestat.com/software/default.html (most recently accessed 03 November 2021)
+If first time using, download required scripts from from Kilem L. Gwet, Ph.D. at <https://www.agreestat.com/software/default.html> (most recently accessed 03 November 2021)
 
-* weights.gen.r
-* agree.coeff2.r
-* agree.coeff3.dist.r
-* agree.coeff3.raw.r
-* paired t-test for agreement coefficients.r
+-   weights.gen.r
+-   agree.coeff2.r
+-   agree.coeff3.dist.r
+-   agree.coeff3.raw.r
+-   paired t-test for agreement coefficients.r
 
 Save in folder called Agree_coefficients within source file location:e.g., HomeDir/Agree_coefficients
 
@@ -78,17 +80,15 @@ theme_update(plot.title = element_text(hjust = 0.5))
 
 ```
 
-
-
 ## Development and run conditions
+
 Code was developed and run using RStudio on macOS. The analysis file is an R Markdown (.rmd) file. The .html document is its output.
 
 The final code was developed with R version `r getRversion()` and RStudio version `r rstudioapi::versionInfo()$version`. Executing the .rmd file will output the current version being run at the time of execution.
 
-For more information on RStudio and R Markdown, see https://www.rstudio.com and https://rmarkdown.rstudio.com. See [Running the script] for required scripts.
+For more information on RStudio and R Markdown, see <https://www.rstudio.com> and <https://rmarkdown.rstudio.com>. See [Running the script] for required scripts.
 
 <font size="2"> Disclaimer: Certain commercial equipment, instruments, or materials are identified in order to specify the procedures adequately. Such identification is not intended to imply recommendation or endorsement by NIST, nor is it intended to imply that the materials or equipment identified are necessarily the best available for the purpose. </font>
-
 
 # Experimental procedure
 
@@ -96,21 +96,22 @@ Participants viewed 2 faces and rated their similarity. Subjects were asked to s
 
 12 of the trials were the same identity (mateBinary: 1); 8 were different identities (matebinary: 0)
 
-See the [paper](https://psyarxiv.com/hq2ab/) for full experimental procedures. 
+See the [paper](https://psyarxiv.com/hq2ab/) for full experimental procedures.
 
 # Data
 
 ## Obtaining
-De-identified data can be obtained via data transfer agreement with the National Institute of Standards and Technology (NIST). Contact Dr. Carina Hahn at <carina.hahn@nist.gov> to obtain a data transfer agreement.
+
+De-identified data can be obtained via data transfer agreement with the National Institute of Standards and Technology (NIST). Contact Dr. Carina Hahn at [carina.hahn\@nist.gov](mailto:carina.hahn@nist.gov){.email} to obtain a data transfer agreement.
 
 ## Column information and data coding
 
-* Images: image pair identifier
-* mateBinary: trial type identifier. 1= same identity pair; 0 = different identity pair
-* Difficulty: difficulty rating provided by participant
-* Group: participant group identifier. 1to1Face = facial examiner; Super = super-recognizer
-* Scores: identity judgment provided by participant
-* SubID: unique participant identifier
+-   Images: image pair identifier
+-   mateBinary: trial type identifier. 1= same identity pair; 0 = different identity pair
+-   Difficulty: difficulty rating provided by participant
+-   Group: participant group identifier. 1to1Face = facial examiner; Super = super-recognizer
+-   Scores: identity judgment provided by participant
+-   SubID: unique participant identifier
 
 ```{r ReadDataFrames}
 
@@ -119,12 +120,12 @@ analysis.data<-readRDS("Hahnetal_examiners_super-recognizers.rds") #data can be 
 ```
 
 # Number of participants
+
 ```{r n.subj}
 analysis.data %>%
   group_by(Group) %>%
   summarise(n.sub=n_distinct(SubID))
 ```
-
 
 ```{r data checks,eval=FALSE,include=FALSE}
 # Can set include = FALSE after check this
@@ -152,6 +153,7 @@ with(analysis.data,tapply(Images, Group, length))
 Histograms of the distribution of ratings Examiner and Super-recognizer groups. The histograms are separated by same-identity (Match) pairs and different-identity (Non-match) pairs. The histogram is computed over all ratings from all image-pairs for all members of a group.
 
 ## Back to back histograms
+
 ```{r back2backHist responses,fig.height=5,fig.width=12}
 backToBackHist.data<-analysis.data %>%
   group_by(Group,Scores,mateBinary) %>%
@@ -191,9 +193,9 @@ ggarrange(plot1.temp,plot2.temp,common.legend = TRUE,legend = "bottom")
 rm(plot1.temp,plot2.temp)
 ```
 
-
 ## Statistical analysis and cumulative distribution plots
-Two-sample Kolmogorov–Smirnov tests (KS test) 
+
+Two-sample Kolmogorov--Smirnov tests (KS test)
 
 **Facial examiners vs. Super-recognizers: Same-identity**
 
@@ -399,8 +401,6 @@ rm(plot1.temp,plot2.temp)
 
 ```
 
-
-
 ## High and Low Confidence
 
 The number of times highly confident ratings (+3 or -3) and midpoint ratings (0) were made across different participant groups. We computed the number of times a response of +/-3 was made for each participant. Separately, we computed the number of times a response of 0 was made for each participant. Each of these were divided by the total number of trials (20) for each participant. This is the reported proportion of responses.
@@ -408,6 +408,7 @@ The number of times highly confident ratings (+3 or -3) and midpoint ratings (0)
 A corresponding figure appears in supplemental materials of this script and the paper.
 
 ### Descriptive statistics
+
 ```{r high low confidence descriptive statistics}
 analysis.data %>%
   group_by(SubID,Group,Scores) %>%
@@ -429,11 +430,13 @@ analysis.data %>%
 ```
 
 ### Statistical analysis
+
 Compare 1) the proportion of high confidence judgments between facial examiners and super-recognizers and 2) the proportion of midpoint judgments between facial examiners and super-recognizers. Note these are both collapsed across trial type.
 
 Effect size: r statistic (e.g., pg. 123; Seigal & Castellan (1956) Nonparametric statistics for the behavioral sciences (2nd))
 
 #### High confidence
+
 ```{r high conf all trial mann whit}
 analysis.data %>%
   group_by(SubID,Group,Scores) %>%
@@ -462,6 +465,7 @@ analysis.data %>%
 ```
 
 #### Midpoint (Low confidence)
+
 ```{r low conf all trial mann whit}
 analysis.data %>%
   group_by(SubID,Group,Scores) %>%
@@ -489,7 +493,8 @@ analysis.data %>%
   wilcoxonR(x=.$proportion0,g=.$Group)
 ```
 
-### Plot 
+### Plot
+
 ```{r proportion conf}
 
 # Plot
@@ -536,14 +541,13 @@ rm(plot1.temp,plot2.temp)
 
 ```
 
-
 # Identity judgment agreement
 
-Inter-rater reliability is measured within participant groups with Fleiss's Kappa (Gwent, Handbook of Inter-rater Reliability) to account for ordinal data. Instructions are available from: http://www.agreestat.com/software/r/new/readme_r_functions.pdf. Appendix B, page 10 
+Inter-rater reliability is measured within participant groups with Fleiss's Kappa (Gwent, Handbook of Inter-rater Reliability) to account for ordinal data. Instructions are available from: <http://www.agreestat.com/software/r/new/readme_r_functions.pdf>. Appendix B, page 10
 
-Agreement was measured with Fleiss's Weighted Kappa between two participants from the same group. Every possible pair was compared. Each unique combinations were created, with the number of combinations being restricted by the number of participants in the full participant group:  
-  
-For 57 Examiners, there are 1,596 possible combinations. 1,596 unique groups were created.  
+Agreement was measured with Fleiss's Weighted Kappa between two participants from the same group. Every possible pair was compared. Each unique combinations were created, with the number of combinations being restricted by the number of participants in the full participant group:
+
+For 57 Examiners, there are 1,596 possible combinations. 1,596 unique groups were created.\
 For 13 super-recognizers, there are 78 possible combinations. 78 unique groups were created.
 
 ```{r compute pairwise kappa}
@@ -554,6 +558,7 @@ kappa.pairwise.supers<-do.pairwise.kappa(analysis.data,'Super')
 ```
 
 ### Descriptive statistics
+
 ```{r pairwise kappa descriptive statistics}
 
 kappa.pairwise.examiners %>%
@@ -570,6 +575,7 @@ kappa.pairwise.supers %>%
 ```
 
 ### Plot
+
 ```{r pairwise kappa plots}
 kappa.pairwise.examiners$group<-"examiner"
 kappa.pairwise.supers$group<-"super"
@@ -593,13 +599,13 @@ ggplot(rbind(kappa.pairwise.examiners,kappa.pairwise.supers),aes(x=group,y=kappa
 
 To examine whether pairwise examiner agreement was different than super-recognizer pairwise agreement, a bootstrap procedure was executed.
 
-* Step 1: Randomly select from 20 images with replacement
-* 2a: Compute pairwise agreement between all possible combinations of examiners
-* 2b: Compute pairwise agreement between all possible combinations of super-recognizers
-* 3a: Compute average agreement of examiners from 2a
-* 3b: Compute average agreement of super-recognizers from 2b
-* 4: Compute difference between to average agreement values from 3a and 3b -> save value from this iteration
-* 5: Repeat 1-4 1000x
+-   Step 1: Randomly select from 20 images with replacement
+-   2a: Compute pairwise agreement between all possible combinations of examiners
+-   2b: Compute pairwise agreement between all possible combinations of super-recognizers
+-   3a: Compute average agreement of examiners from 2a
+-   3b: Compute average agreement of super-recognizers from 2b
+-   4: Compute difference between to average agreement values from 3a and 3b -\> save value from this iteration
+-   5: Repeat 1-4 1000x
 
 ```{r pairwise kappa plots analysis}
 ##
@@ -677,15 +683,16 @@ if (top.bottom.tail[1]<=0){
 
 ```
 
-
 # Relationship between measures
 
 ## Confidence vs. Difficulty
 
-### Trial level 
+### Trial level
+
 The relationship between difficulty ratings and identity judgment (regardless of direction of the score +/-3). This was done at the level of the trial. This addresses the question: Is difficulty rating associated with absolute value of the score (confidence)? This was measured with Kendall's tau.
 
 #### Plot
+
 ```{r diff vs score plot trial level}
 
 plot1.temp<-analysis.data %>%
@@ -730,8 +737,8 @@ ggarrange(plot1.temp,plot2.temp,common.legend = TRUE,legend="bottom")
 rm(plot1.temp,plot2.temp)
 
 ```
-  
-#### Statistical analysis  
+
+#### Statistical analysis
 
 Compute kendall's tau correlation between difficulty rating and absolute value of the identity judgments (confidence).
 
@@ -749,6 +756,7 @@ analysis.data %>%
 Compute mean confidence and mean difficulty per subject. Produce plot and compute Kendall's tau correlation between the two.
 
 #### Plot
+
 ```{r diff v conf individual plot}
 analysis.data %>%
   group_by(Group,SubID) %>% 
@@ -768,8 +776,9 @@ analysis.data %>%
         axis.title.x = element_text(size=15),
         axis.title.y = element_text(size=15))
 ```
-  
-#### Statistical analysis  
+
+#### Statistical analysis
+
 ```{r conf v diff indiv stats}
 
 analysis.data %>%
@@ -783,13 +792,12 @@ analysis.data %>%
 
 ```
 
+## Confidence vs. Accuracy
 
-## Confidence vs. Accuracy 
-  
-Correlation (Kendall's tau) between absolute value of responses (i.e., magnitude of decisions made) and AUC. The average confidence (average absolute value of response) was obtained per participant. The AUC was obtained per participant. Correlations were computed between the two, separately for examiners and super-recognizers.  
-
+Correlation (Kendall's tau) between absolute value of responses (i.e., magnitude of decisions made) and AUC. The average confidence (average absolute value of response) was obtained per participant. The AUC was obtained per participant. Correlations were computed between the two, separately for examiners and super-recognizers.
 
 ### Statistical analysis
+
 ```{r conf v acc correlation}
 
 analysis.data %>% 
@@ -805,16 +813,18 @@ analysis.data %>%
 ```
 
 ## Difficulty vs. Accuracy
-Correlation (Kendall's tau) between rated difficulty and AUC. The average rated difficulty was obtained per participant. The AUC was obtained per participant. Correlations were computed between the two, separately for examiners and super-recognizers.  
 
-Difficulty rating scale:  
-    1. Easy: The comparison was easier than most facial comparisons.  
-    2. Moderate: The comparison was a typical facial comparison.  
-    3. Difficult: The comparison was more difficult than most facial comparisons.  
-    4. Very difficult: The comparison was unusually difficult, involving significant photometric illumination, or pose changes, other red flags.  
-    5. Not Possible: The comparison was virtually impossible, due to a lack of detail in the image(s).
+Correlation (Kendall's tau) between rated difficulty and AUC. The average rated difficulty was obtained per participant. The AUC was obtained per participant. Correlations were computed between the two, separately for examiners and super-recognizers.
+
+Difficulty rating scale:\
+1. Easy: The comparison was easier than most facial comparisons.\
+2. Moderate: The comparison was a typical facial comparison.\
+3. Difficult: The comparison was more difficult than most facial comparisons.\
+4. Very difficult: The comparison was unusually difficult, involving significant photometric illumination, or pose changes, other red flags.\
+5. Not Possible: The comparison was virtually impossible, due to a lack of detail in the image(s).
 
 ### Statistical analysis
+
 ```{r diff v acc correlation}
 
 analysis.data %>% 
@@ -829,11 +839,12 @@ analysis.data %>%
 
 ```
 
-## Combined Confidence and Difficulty 
+## Combined Confidence and Difficulty
 
 Combined plot: The relationship between 1) confidence and accuracy, and 2) difficulty and accuracy
 
 ### Plot
+
 ```{r conf and diff v accuracy plot}
 
 plot1.temp<-analysis.data %>% 
@@ -878,22 +889,21 @@ ggarrange(plot1.temp,plot2.temp,common.legend = TRUE,legend="bottom")
 rm(plot1.temp,plot2.temp)
 ```
 
-
-# Supplemental 
-
+# Supplemental
 
 ## Difficulty ratings
 
-Difficulty rating scale:  
-    1. Easy: The comparison was easier than most facial comparisons.  
-    2. Moderate: The comparison was a typical facial comparison.  
-    3. Difficult: The comparison was more difficult than most facial comparisons.  
-    4. Very difficult: The comparison was unusually difficult, involving significant photometric illumination, or pose changes, other red flags.  
-    5. Not Possible: The comparison was virtually impossible, due to a lack of detail in the image(s).  
+Difficulty rating scale:\
+1. Easy: The comparison was easier than most facial comparisons.\
+2. Moderate: The comparison was a typical facial comparison.\
+3. Difficult: The comparison was more difficult than most facial comparisons.\
+4. Very difficult: The comparison was unusually difficult, involving significant photometric illumination, or pose changes, other red flags.\
+5. Not Possible: The comparison was virtually impossible, due to a lack of detail in the image(s).
 
-The graph below shows the back to back histogram for the distribution of difficulty ratings for each group.  
+The graph below shows the back to back histogram for the distribution of difficulty ratings for each group.
 
 ### Plot
+
 ```{r difficulty rating dist,fig.height=5,fig.width=12}
 
 backToBackHist.diff.data<-analysis.data %>%
@@ -938,7 +948,7 @@ rm(plot1.temp,plot2.temp)
 
 ### Statisical analysis: Distributions
 
-Two-sample Kolmogorov–Smirnov tests (KS test) 
+Two-sample Kolmogorov--Smirnov tests (KS test)
 
 **Examiner vs. Super: Same-identity**
 
@@ -965,6 +975,7 @@ with(analysis.data,suppressWarnings(ks.test(Difficulty[Group=="1to1Face" & mateB
 ```
 
 **Super-recognizer: Same- vs. Different-identity**
+
 ```{r kstest diff super m v nm}
 
 with(analysis.data,suppressWarnings(ks.test(Difficulty[Group=="Super" & mateBinary == "1"],Difficulty[Group=="Super" & mateBinary == "0"])))
@@ -972,6 +983,7 @@ with(analysis.data,suppressWarnings(ks.test(Difficulty[Group=="Super" & mateBina
 ```
 
 ### Percent of each rating
+
 This is the percent of trials in which a given difficulty rating was provided.
 
 ```{r diff percent ratings}
@@ -1063,16 +1075,19 @@ data.frame(Effect=c("Group","Trial.type","Interaction"),rbind(data.frame(main.gr
 ```
 
 # License
-NIST-developed software is provided by NIST as a public service. You may use, copy, and distribute copies of the software in any medium, provided that you keep intact this entire notice. You may improve, modify, and create derivative works of the software or any portion of the software, and you may copy and distribute such modifications or works. Modified works should carry a notice stating that you changed the software and should note the date and nature of any such change. Please explicitly acknowledge the National Institute of Standards and Technology as the source of the software. 
+
+NIST-developed software is provided by NIST as a public service. You may use, copy, and distribute copies of the software in any medium, provided that you keep intact this entire notice. You may improve, modify, and create derivative works of the software or any portion of the software, and you may copy and distribute such modifications or works. Modified works should carry a notice stating that you changed the software and should note the date and nature of any such change. Please explicitly acknowledge the National Institute of Standards and Technology as the source of the software.
 
 NIST-developed software is expressly provided "AS IS." NIST MAKES NO WARRANTY OF ANY KIND, EXPRESS, IMPLIED, IN FACT, OR ARISING BY OPERATION OF LAW, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTY OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, AND DATA ACCURACY. NIST NEITHER REPRESENTS NOR WARRANTS THAT THE OPERATION OF THE SOFTWARE WILL BE UNINTERRUPTED OR ERROR-FREE, OR THAT ANY DEFECTS WILL BE CORRECTED. NIST DOES NOT WARRANT OR MAKE ANY REPRESENTATIONS REGARDING THE USE OF THE SOFTWARE OR THE RESULTS THEREOF, INCLUDING BUT NOT LIMITED TO THE CORRECTNESS, ACCURACY, RELIABILITY, OR USEFULNESS OF THE SOFTWARE.
 
 You are solely responsible for determining the appropriateness of using and distributing the software and you assume all risks associated with its use, including but not limited to the risks and costs of program errors, compliance with applicable laws, damage to or loss of data, programs or equipment, and the unavailability or interruption of operation. This software is not intended to be used in any situation where a failure could cause risk of injury or damage to property. The software developed by NIST employees is not subject to copyright protection within the United States.
 
 # Version and libraries
+
 Built with R version `r getRversion()`
 
-Libraries: 
+Libraries:
+
 ```{r}
 loaded.libraries<-(.packages())
 for (i in seq_along(loaded.libraries)) {
@@ -1080,4 +1095,4 @@ for (i in seq_along(loaded.libraries)) {
   print(get.cite)
   }
 
-```  
+```
