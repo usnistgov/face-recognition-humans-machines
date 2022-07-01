@@ -210,17 +210,15 @@ analysis.data %>%
 analysis.data %>% 
   filter(mateBinary=="1") %>% 
   droplevels() %>% 
-  ggplot(.,aes(x=Scores,color=Group,linetype=Group))+
-  stat_ecdf(geom="line",size=1.3)+
+  ggplot(.,aes(x=Scores,color=Group,shape=Group))+
+  stat_ecdf(geom="point",size=3,pad=FALSE)+
   scale_x_continuous(name="Identity Judgment",breaks=seq(-3,3),labels=seq(-3,3))+
   scale_color_manual(values=c(brewer.pal(n = 7,name="Blues")[2],brewer.pal(n = 7,name="Blues")[7]),
                     limits=c("1to1Face","Super"),
                     label=c("Facial examiners","Super-rec."),
                     name="Group")+
-  scale_linetype_manual(values=c("solid","dotted"),
-                        limits=c("1to1Face","Super"),
-                        label=c("Facial examiners","Super-rec."),
-                        name="Group")+
+  guides(color = guide_legend(override.aes = list(shape = c(19,17))))+
+  scale_shape_discrete(guide="none")+
   ggtitle("Same-identity trials")+
   labs(y="Cumulative Proportion")+
   theme_classic()+
@@ -245,17 +243,15 @@ analysis.data %>%
 analysis.data %>% 
   filter(mateBinary=="0") %>% 
   droplevels() %>% 
-  ggplot(.,aes(x=Scores,color=Group,linetype=Group))+
-  stat_ecdf(geom="line",size=1.3)+
+  ggplot(.,aes(x=Scores,color=Group,shape=Group))+
+  stat_ecdf(geom="point",size=3,pad=FALSE)+
   scale_x_continuous(name="Identity Judgment",breaks=seq(-3,3),labels=seq(-3,3))+
   scale_color_manual(values=c(brewer.pal(n = 7,name="Blues")[2],brewer.pal(n = 7,name="Blues")[7]),
                     limits=c("1to1Face","Super"),
                     label=c("Facial examiners","Super-rec."),
                     name="Group")+
-  scale_linetype_manual(values=c("solid","dotted"),
-                        limits=c("1to1Face","Super"),
-                        label=c("Facial examiners","Super-rec."),
-                        name="Group")+
+  guides(color = guide_legend(override.aes = list(shape = c(19,17))))+
+  scale_shape_discrete(guide="none")+
   ggtitle("Different-identity trials")+
   labs(y="Cumulative Proportion")+
   theme_classic()+
@@ -282,17 +278,15 @@ analysis.data %>%
   filter(Group=="1to1Face") %>%
   mutate(mirroredScores=case_when(mateBinary=="0" ~ Scores*-1,
                                   mateBinary=="1" ~ Scores)) %>%
-  ggplot(.,aes(x=mirroredScores,color=mateBinary,linetype=mateBinary))+
-  stat_ecdf(geom="line",size=1.3)+
+  ggplot(.,aes(x=mirroredScores,color=mateBinary,shape=mateBinary))+
+  stat_ecdf(geom="point",size=3,pad=FALSE)+
   scale_x_continuous(name="Identity Judgment",breaks=seq(-3,3),labels=seq(-3,3))+
   scale_color_manual(values=c(brewer.pal(n = 7,name="Blues")[2],brewer.pal(n = 7,name="Blues")[7]),
                     limits=c("1","0"),
                     label=c("Same ID","Different ID (judgments mirrored)"),
                     name="Trial Type")+
-  scale_linetype_manual(values=c("solid","dotted"),
-                        limits=c("1","0"),
-                        label=c("Same ID","Different ID (judgments mirrored)"),
-                        name="Trial Type")+
+  guides(color = guide_legend(override.aes = list(shape = c(19,17))))+
+  scale_shape_discrete(guide="none")+
   ggtitle("Facial examiners")+
   labs(y="Cumulative Proportion")+
   theme_classic()+
@@ -319,17 +313,15 @@ analysis.data %>%
   filter(Group=="Super") %>%
   mutate(mirroredScores=case_when(mateBinary=="0" ~ Scores*-1,
                                   mateBinary=="1" ~ Scores)) %>%
-  ggplot(.,aes(x=mirroredScores,color=mateBinary,linetype=mateBinary))+
-  stat_ecdf(geom="line",size=1.3)+
+  ggplot(.,aes(x=mirroredScores,color=mateBinary,shape=mateBinary))+
+  stat_ecdf(geom="point",size=3,pad=FALSE)+
   scale_x_continuous(name="Identity Judgment",breaks=seq(-3,3),labels=seq(-3,3))+
   scale_color_manual(values=c(brewer.pal(n = 7,name="Blues")[2],brewer.pal(n = 7,name="Blues")[7]),
                     limits=c("1","0"),
                     label=c("Same ID","Different ID (judgments mirrored)"),
                     name="Trial Type")+
-  scale_linetype_manual(values=c("solid","dotted"),
-                        limits=c("1","0"),
-                        label=c("Same ID","Different ID (judgments mirrored)"),
-                        name="Trial Type")+
+  guides(color = guide_legend(override.aes = list(shape = c(19,17))))+
+  scale_shape_discrete(guide="none")+
   ggtitle("Super-recognizers")+
   labs(y="Cumulative Proportion")+
   theme_classic()+
@@ -350,17 +342,15 @@ plot1.temp<-analysis.data %>%
   filter(Group=="1to1Face") %>%
   mutate(mirroredScores=case_when(mateBinary=="0" ~ Scores*-1,
                                   mateBinary=="1" ~ Scores)) %>%
-  ggplot(.,aes(x=mirroredScores,color=mateBinary,linetype=mateBinary))+
-  stat_ecdf(geom="line",size=1.3)+
+  ggplot(.,aes(x=mirroredScores,color=mateBinary,shape=mateBinary))+
+  stat_ecdf(geom="point",size=3,pad="FALSE")+
   scale_x_continuous(name="Identity Judgment",breaks=seq(-3,3),labels=seq(-3,3))+
   scale_color_manual(values=c(brewer.pal(n = 7,name="Blues")[2],brewer.pal(n = 7,name="Blues")[7]),
                     limits=c("1","0"),
                     label=c("Same ID","Different ID (judgments mirrored)"),
                     name="Trial Type")+
-  scale_linetype_manual(values=c("solid","dotted"),
-                        limits=c("1","0"),
-                        label=c("Same ID","Different ID (judgments mirrored)"),
-                        name="Trial Type")+
+  guides(color = guide_legend(override.aes = list(shape = c(19,17))))+
+  scale_shape_discrete(guide="none")+
   ggtitle("Facial examiners")+
   labs(y="Cumulative Proportion")+
   theme_classic()+
@@ -376,167 +366,27 @@ analysis.data %>%
   filter(Group=="Super") %>%
   mutate(mirroredScores=case_when(mateBinary=="0" ~ Scores*-1,
                                   mateBinary=="1" ~ Scores)) %>%
-  ggplot(.,aes(x=mirroredScores,color=mateBinary,linetype=mateBinary))+
-  stat_ecdf(geom="line",size=1.3)+
+  ggplot(.,aes(x=mirroredScores,color=mateBinary,shape=mateBinary))+
+  stat_ecdf(geom="point",size=3,pad="FALSE")+
   scale_x_continuous(name="Identity Judgment",breaks=seq(-3,3),labels=seq(-3,3))+
   scale_color_manual(values=c(brewer.pal(n = 7,name="Blues")[2],brewer.pal(n = 7,name="Blues")[7]),
                     limits=c("1","0"),
                     label=c("Same ID","Different ID (judgments mirrored)"),
                     name="Trial Type")+
-  scale_linetype_manual(values=c("solid","dotted"),
-                        limits=c("1","0"),
-                        label=c("Same ID","Different ID (judgments mirrored)"),
-                        name="Trial Type")+
+  guides(color = guide_legend(override.aes = list(shape = c(19,17))))+
+  scale_shape_discrete(guide="none")+
   ggtitle("Super-recognizers")+
   labs(y="Cumulative Proportion")+
   theme_classic()+
   theme(plot.title = element_text(hjust = 0.5),
         axis.text.x = element_text(size=12),
         axis.title.x = element_text(size=14),
-        axis.text.y = element_text(size=12),
-        axis.title.y = element_text(size=14))
+        axis.text.y = element_blank(),
+        axis.title.y = element_blank(),
+        axis.ticks.y=element_blank())
+
 
 ggarrange(plot1.temp,plot2.temp,common.legend = TRUE,legend="bottom")
-rm(plot1.temp,plot2.temp)
-
-```
-
-## High and Low Confidence
-
-The number of times highly confident ratings (+3 or -3) and midpoint ratings (0) were made across different participant groups. We computed the number of times a response of +/-3 was made for each participant. Separately, we computed the number of times a response of 0 was made for each participant. Each of these were divided by the total number of trials (20) for each participant. This is the reported proportion of responses.
-
-A corresponding figure appears in supplemental materials of this script and the paper.
-
-### Descriptive statistics
-
-```{r high low confidence descriptive statistics}
-analysis.data %>%
-  group_by(SubID,Group,Scores) %>%
-  tally() %>%
-  spread(Scores,n) %>%
-  replace(., is.na(.), 0) %>%
-  group_by(SubID) %>%
-  mutate(total3=sum(`-3`,`3`),
-         totaln=sum(`-3`,`-2`,`-1`,`0`,`1`,`2`,`3`),
-         proportion3=total3/totaln,
-         proportion0=`0`/totaln) %>%
-  group_by(Group) %>%
-  summarise(mean3=mean(proportion3),
-            sd3=sd(proportion3),
-            mean0=mean(proportion0),
-            sd0=sd(proportion0)) %>%
-  kable(col.names = c("Group","Mean: +/-3","SD: +/-3","Mean: 0","SD: 0"),caption = "Mean judgments by group: high confidence and scale midpoint",digits=2) %>%
-  kable_styling(bootstrap_options = "striped", full_width = FALSE)
-```
-
-### Statistical analysis
-
-Compare 1) the proportion of high confidence judgments between facial examiners and super-recognizers and 2) the proportion of midpoint judgments between facial examiners and super-recognizers. Note these are both collapsed across trial type.
-
-Effect size: r statistic (e.g., pg. 123; Seigal & Castellan (1956) Nonparametric statistics for the behavioral sciences (2nd))
-
-#### High confidence
-
-```{r high conf all trial mann whit}
-analysis.data %>%
-  group_by(SubID,Group,Scores) %>%
-  tally() %>%
-  spread(Scores,n) %>%
-  replace(., is.na(.), 0) %>%
-  group_by(SubID) %>%
-  mutate(total3=sum(`-3`,`3`),
-         totaln=sum(`-3`,`-2`,`-1`,`0`,`1`,`2`,`3`),
-         proportion3=total3/totaln,
-         proportion0=`0`/totaln) %>%
-  ttestIS(formula = proportion3 ~ Group, data = .,mann = TRUE,effectSize = TRUE,ci=TRUE)
-
-# Effect size
-analysis.data %>%
-  group_by(SubID,Group,Scores) %>%
-  tally() %>%
-  spread(Scores,n) %>%
-  replace(., is.na(.), 0) %>%
-  group_by(SubID) %>%
-  mutate(total3=sum(`-3`,`3`),
-         totaln=sum(`-3`,`-2`,`-1`,`0`,`1`,`2`,`3`),
-         proportion3=total3/totaln,
-         proportion0=`0`/totaln) %>%
-  wilcoxonR(x=.$proportion3,g=.$Group)
-```
-
-#### Midpoint (Low confidence)
-
-```{r low conf all trial mann whit}
-analysis.data %>%
-  group_by(SubID,Group,Scores) %>%
-  tally() %>%
-  spread(Scores,n) %>%
-  replace(., is.na(.), 0) %>%
-  group_by(SubID) %>%
-  mutate(total3=sum(`-3`,`3`),
-         totaln=sum(`-3`,`-2`,`-1`,`0`,`1`,`2`,`3`),
-         proportion3=total3/totaln,
-         proportion0=`0`/totaln) %>%
-  ttestIS(formula = proportion0 ~ Group, data = .,mann = TRUE,effectSize = TRUE,ci=TRUE)
-
-# Effect size
-analysis.data %>%
-  group_by(SubID,Group,Scores) %>%
-  tally() %>%
-  spread(Scores,n) %>%
-  replace(., is.na(.), 0) %>%
-  group_by(SubID) %>%
-  mutate(total3=sum(`-3`,`3`),
-         totaln=sum(`-3`,`-2`,`-1`,`0`,`1`,`2`,`3`),
-         proportion3=total3/totaln,
-         proportion0=`0`/totaln) %>%
-  wilcoxonR(x=.$proportion0,g=.$Group)
-```
-
-### Plot
-
-```{r proportion conf}
-
-# Plot
-plot1.temp<-analysis.data %>%
-  group_by(SubID,Group,Scores) %>%
-  tally() %>%
-  spread(Scores,n) %>%
-  replace(., is.na(.), 0) %>%
-  group_by(SubID) %>%
-  mutate(total3=sum(`-3`,`3`),
-         totaln=sum(`-3`,`-2`,`-1`,`0`,`1`,`2`,`3`),
-         proportion3=total3/totaln,
-         proportion0=`0`/totaln) %>%
-  ggplot(.,aes(x=Group,y=proportion3))+
-  geom_dotplot(binaxis='y', stackdir='center', dotsize=.2,binwidth = 0.05,stackratio = 1,alpha=.5)+
-  stat_summary(fun=mean, geom="point", size=5,shape=18,,color="blue")+ 
-  stat_summary(fun=median, geom="point", size=5,shape=19,color="red")+
-  ylim(0,1)+
-  scale_x_discrete(breaks=c("1to1Face","Super"),label=c("Examiners","Super-rec."))+
-  theme_minimal()+
-  labs(fill="Trial Type",y="Proportion of judgments",title="High confidence ('+/-3') identity judgments")
-
-plot2.temp<-analysis.data %>%
-  group_by(SubID,Group,Scores) %>%
-  tally() %>%
-  spread(Scores,n) %>%
-  replace(., is.na(.), 0) %>%
-  group_by(SubID) %>%
-  mutate(total3=sum(`-3`,`3`),
-         totaln=sum(`-3`,`-2`,`-1`,`0`,`1`,`2`,`3`),
-         proportion3=total3/totaln,
-         proportion0=`0`/totaln) %>%
-  ggplot(.,aes(x=Group,y=proportion0))+
-  geom_dotplot(binaxis='y', stackdir='center', dotsize=.2,binwidth = 0.05,stackratio = 1,alpha=.5)+
-  stat_summary(fun=mean, geom="point", size=5,shape=18,,color="blue")+ 
-  stat_summary(fun=median, geom="point", size=5,shape=19,color="red")+
-  ylim(0,1)+
-  scale_x_discrete(breaks=c("1to1Face","Super"),label=c("Examiners","Super-rec."))+
-  theme_minimal()+
-  labs(fill="Trial Type",y="Proportion of judgments",title="Midpiont ('0') identity judgments")
-
-ggarrange(plot1.temp,plot2.temp)
 rm(plot1.temp,plot2.temp)
 
 ```
