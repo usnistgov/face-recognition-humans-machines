@@ -285,7 +285,7 @@ analysis.data %>%
                     limits=c("1","0"),
                     label=c("Same ID","Different ID (judgments mirrored)"),
                     name="Trial Type")+
-  guides(color = guide_legend(override.aes = list(shape = c(19,17))))+
+  guides(color = guide_legend(override.aes = list(shape = c(17,19))))+
   scale_shape_discrete(guide="none")+
   ggtitle("Facial examiners")+
   labs(y="Cumulative Proportion")+
@@ -320,7 +320,7 @@ analysis.data %>%
                     limits=c("1","0"),
                     label=c("Same ID","Different ID (judgments mirrored)"),
                     name="Trial Type")+
-  guides(color = guide_legend(override.aes = list(shape = c(19,17))))+
+  guides(color = guide_legend(override.aes = list(shape = c(17,19))))+
   scale_shape_discrete(guide="none")+
   ggtitle("Super-recognizers")+
   labs(y="Cumulative Proportion")+
@@ -349,7 +349,7 @@ plot1.temp<-analysis.data %>%
                     limits=c("1","0"),
                     label=c("Same ID","Different ID (judgments mirrored)"),
                     name="Trial Type")+
-  guides(color = guide_legend(override.aes = list(shape = c(19,17))))+
+  guides(color = guide_legend(override.aes = list(shape = c(17,19))))+
   scale_shape_discrete(guide="none")+
   ggtitle("Facial examiners")+
   labs(y="Cumulative Proportion")+
@@ -373,7 +373,7 @@ analysis.data %>%
                     limits=c("1","0"),
                     label=c("Same ID","Different ID (judgments mirrored)"),
                     name="Trial Type")+
-  guides(color = guide_legend(override.aes = list(shape = c(19,17))))+
+  guides(color = guide_legend(override.aes = list(shape = c(17,19))))+
   scale_shape_discrete(guide="none")+
   ggtitle("Super-recognizers")+
   labs(y="Cumulative Proportion")+
