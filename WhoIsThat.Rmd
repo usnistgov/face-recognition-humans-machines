@@ -1,0 +1,609 @@
+---
+title: "Who Is That? Perceptual Expertise on Other-Race Face Comparisons, Disguised Face Comparisons, and Face Memory - Analysis Script"
+author: "Amy N. Yates, Jacqueline G. Cavazos, Géraldine Jeckeln, Ying Hu, Eilidh Noyes, Carina A. Hahn, Alice J. O'Toole, P. Jonathon Phillips"
+date: "2023-05-08"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE, message=FALSE}
+# This is the analysis script for the paper "Who Is That? Perceptual Expertise on Other-Race Face Comparisons, Disguised Face Comparisons, and Face Memory"
+#  The paper can be found at https://doi.org/10.31234/osf.io/s87na
+
+# Update these to your local file paths
+nist.ore.file<-"NIST/ORE.csv"
+nist.disguise.file<-"NIST/Disguise.csv"
+nist.cfmt.file<-"NIST/CFMT.csv"
+
+utd.ore.file<-"UTD/ORE.csv"
+utd.disguise.file<-"UTD/Disguise.csv"
+utd.cfmt.file<-"UTD/CFMT.csv"
+
+
+knitr::opts_chunk$set(echo = FALSE, comment = NA)
+
+library(GGally)
+library(knitr)
+library(kableExtra)
+library(rlang)
+library(tidyverse)
+```
+
+```{r constants}
+# For plots
+medShape<-16
+medSize<-5
+medStroke<-0.5
+medColor<-"red"
+
+# For chunks
+figWidth<-7
+figWideWidth<-9
+figAlign<-"center"
+
+numSigDigits<-3
+yLim<-c(0.3, 1.0)
+
+titleSize<-20
+textSize<-16
+
+# Colorblind-friendly palette from:
+#     http://www.cookbook-r.com/Graphs/Colors_(ggplot2)/
+cbPalette<-c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
+             "#0072B2", "#D55E00", "#CC79A7", "#000000")
+
+creColors<-cbPalette[c(2, 6)]
+
+disTasks<-c("Non-Disguised", "Impersonation", "Evasion")
+```
+
+```{r functions, message=FALSE}
+as_dataFrame_withCols<-function(rObj, colNames, ...)
+{
+  colnames(rObj)<-colNames
+  rDF<-as.data.frame(rObj, ...)
+  return(rDF)
+}
+
+# Calculate AUC using Mann-Whitney U/Wilcoxon rank sum test
+auc<-function(posScores, negScores)
+{
+  posScores<-posScores[!is.na(posScores)]
+  negScores<-negScores[!is.na(negScores)]
+  numPos<-length(posScores)
+  numNeg<-length(negScores)
+  
+  wResults<-suppressWarnings(wilcox.test(posScores, negScores))
+  grabAUC<-unname(wResults$statistic/(numPos*numNeg))
+  
+  return(grabAUC)
+}
+
+# Create stat table
+stat_table<-function(dataFrame, groupCol, scoreCol)
+{
+  theGroups<-dataFrame %>% pull({{groupCol}}) %>% unique()
+  numGroups<-length(theGroups)
+  numPairs<-choose(numGroups, 2)
+  
+  thePairs<-combn(theGroups, 2) %>%
+    t() %>%
+    as_dataFrame_withCols(colNames=c("Group1", "Group2")) %>%
+    mutate(N1=integer(numPairs),
+           N2=integer(numPairs),
+           Median1=numeric(numPairs),
+           Median2=numeric(numPairs),
+           UValue=numeric(numPairs),
+           pValue=numeric(numPairs),
+           alpha=0.05/numPairs)
+  
+  for (i in 1:numPairs)
+  {
+    gp1<-thePairs$Group1[i]
+    gp2<-thePairs$Group2[i]
+    
+    scores1<-dataFrame %>%
+      filter({{groupCol}}==gp1) %>%
+      pull({{scoreCol}})
+    
+    scores2<-dataFrame %>%
+      filter({{groupCol}}==gp2) %>%
+      pull({{scoreCol}})
+    
+    n1<-length(scores1)
+    n2<-length(scores2)
+    
+    wilTest<-suppressWarnings(wilcox.test(x=scores1, y=scores2))
+    
+    u1<-wilTest$statistic
+    u2<-n1*n2 - u1
+    
+    thePairs$N1[i]<-n1
+    thePairs$N2[i]<-n2
+    thePairs$Median1[i]<-median(scores1)
+    thePairs$Median2[i]<-median(scores2)
+    thePairs$UValue[i]<-min(u1, u2)
+    thePairs$pValue[i]<-wilTest$p.value
+  }
+  
+  thePairs<-thePairs %>%
+    mutate(BonP=p.adjust(p=pValue, method="bonferroni"))
+  
+  return(thePairs)
+}
+
+pair_table<-function(dataFrame, idCols, groupCol, scoreCol)
+{
+  theGroups<-dataFrame %>% pull({{groupCol}}) %>% unique() %>% as.character()
+  numGroups<-length(theGroups)
+  numPairs<-choose(numGroups, 2)
+  
+  wideData<-dataFrame %>%
+    pivot_wider(id_cols={{idCols}}, names_from={{groupCol}},
+                values_from={{scoreCol}})
+  
+  thePairs<-combn(theGroups, 2) %>%
+    t() %>%
+    as_dataFrame_withCols(colNames=c("Group1", "Group2")) %>%
+    mutate(N=integer(numPairs),
+           Median1=numeric(numPairs),
+           Median2=numeric(numPairs),
+           WValue=numeric(numPairs),
+           pValue=numeric(numPairs),
+           alpha=0.05/numPairs)
+  
+  for (i in 1:numPairs)
+  {
+    gp1<-thePairs$Group1[i]
+    gp2<-thePairs$Group2[i]
+    
+    scores1<-wideData %>%
+      pull(gp1)
+    
+    scores2<-wideData %>%
+      pull(gp2)
+    
+    n<-length(scores1)
+    
+    wilTest<-suppressWarnings(wilcox.test(x=scores1, y=scores2, paired=TRUE))
+    
+    t1<-wilTest$statistic
+    t2<-choose(n+1, 2) - t1
+    
+    thePairs$N[i]<-n
+    thePairs$Median1[i]<-median(scores1)
+    thePairs$Median2[i]<-median(scores2)
+    thePairs$WValue[i]<-min(t1, t2)
+    thePairs$pValue[i]<-wilTest$p.value
+  }
+  
+  thePairs<-thePairs %>%
+    mutate(BonP=p.adjust(p=pValue, method="bonferroni"))
+  
+  return(thePairs)
+}
+```
+
+```{r split violin plot}
+# Code in this chunk by Stack Overflow user jan-glx, found at: 
+# https://stackoverflow.com/questions/35717353/split-violin-plot-with-ggplot2
+
+GeomSplitViolin <- ggproto("GeomSplitViolin", GeomViolin, 
+                           draw_group = function(self, data, ..., draw_quantiles = NULL) {
+  data <- transform(data, xminv = x - violinwidth * (x - xmin), xmaxv = x + violinwidth * (xmax - x))
+  grp <- data[1, "group"]
+  newdata <- plyr::arrange(transform(data, x = if (grp %% 2 == 1) xminv else xmaxv), if (grp %% 2 == 1) y else -y)
+  newdata <- rbind(newdata[1, ], newdata, newdata[nrow(newdata), ], newdata[1, ])
+  newdata[c(1, nrow(newdata) - 1, nrow(newdata)), "x"] <- round(newdata[1, "x"])
+
+  if (length(draw_quantiles) > 0 & !scales::zero_range(range(data$y))) {
+    stopifnot(all(draw_quantiles >= 0), all(draw_quantiles <=
+      1))
+    quantiles <- ggplot2:::create_quantile_segment_frame(data, draw_quantiles)
+    aesthetics <- data[rep(1, nrow(quantiles)), setdiff(names(data), c("x", "y")), drop = FALSE]
+    aesthetics$alpha <- rep(1, nrow(quantiles))
+    both <- cbind(quantiles, aesthetics)
+    quantile_grob <- GeomPath$draw_panel(both, ...)
+    ggplot2:::ggname("geom_split_violin", grid::grobTree(GeomPolygon$draw_panel(newdata, ...), quantile_grob))
+  }
+  else {
+    ggplot2:::ggname("geom_split_violin", GeomPolygon$draw_panel(newdata, ...))
+  }
+})
+
+geom_split_violin <- function(mapping = NULL, data = NULL, stat = "ydensity", position = "identity", ..., 
+                              draw_quantiles = NULL, trim = TRUE, scale = "area", na.rm = FALSE, 
+                              show.legend = NA, inherit.aes = TRUE) {
+  layer(data = data, mapping = mapping, stat = stat, geom = GeomSplitViolin, 
+        position = position, show.legend = show.legend, inherit.aes = inherit.aes, 
+        params = list(trim = trim, scale = scale, draw_quantiles = draw_quantiles, na.rm = na.rm, ...))
+}
+```
+
+```{r nist data}
+# Read in data
+nist.ore.df<-read.csv(file=nist.ore.file, stringsAsFactors=FALSE)
+nist.dis.df<-read.csv(file=nist.disguise.file, stringsAsFactors=FALSE)
+nist.cfmt.df<-read.csv(file=nist.cfmt.file, stringsAsFactors=FALSE)
+
+# Calculate AUC for each participant - ORE
+nist.ore.auc<-nist.ore.df %>%
+  spread(mateBinary, Scores) %>% 
+  group_by(SubID, Group, Stim_Race) %>%
+  summarize(AUC=auc(posScores=`1`, negScores=`0`), .groups="drop")
+
+# Calculate AUC for each participant - Disguise
+# Non-Disguised Condition
+nist.dis_non.auc<-nist.dis.df %>%
+  filter(Type %in% c("1A", "2A")) %>%
+  spread(mateBinary, Scores) %>% 
+  group_by(SubID, Group) %>%
+  summarize(AUC=auc(posScores=`1`, negScores=`0`), .groups="drop") %>%
+  mutate(Task="Non-Disguised")
+
+# Impersonation Condition
+nist.dis_imp.auc<-nist.dis.df %>%
+  filter(Type %in% c("1A", "2B")) %>%
+  spread(mateBinary, Scores) %>% 
+  group_by(SubID, Group) %>%
+  summarize(AUC=auc(posScores=`1`, negScores=`0`), .groups="drop") %>%
+  mutate(Task="Impersonation")
+
+# Evasion Condition
+nist.dis_eva.auc<-nist.dis.df %>%
+  filter(Type %in% c("1B", "2A")) %>%
+  spread(mateBinary, Scores) %>% 
+  group_by(SubID, Group) %>%
+  summarize(AUC=auc(posScores=`1`, negScores=`0`), .groups="drop") %>%
+  mutate(Task="Evasion")
+
+# Together
+nist.dis.auc<-rbind(nist.dis_non.auc, nist.dis_imp.auc, nist.dis_eva.auc)
+
+# Calculate Percent Correct (PC) for each participant
+nist.cfmt.pc<-nist.cfmt.df %>%
+  group_by(SubID, Group) %>%
+  summarize(PC=mean(Correct), .groups="drop")
+```
+
+```{r utd data}
+# Read in data
+utd.ore.df<-read.csv(file=utd.ore.file, stringsAsFactors=FALSE)
+utd.dis.df<-read.csv(file=utd.disguise.file, stringsAsFactors=FALSE)
+utd.cfmt.df<-read.csv(file=utd.cfmt.file, stringsAsFactors=FALSE)
+
+# Calculate AUC for each participant - ORE
+utd.ore.auc<-utd.ore.df %>%
+  spread(mateBinary, Scores) %>% 
+  group_by(SubID, Group, Stim_Race) %>%
+  summarize(AUC=auc(posScores=`1`, negScores=`0`), .groups="drop")
+
+# Calculate AUC for each participant - Disguise
+# Non-Disguised Condition
+utd.dis_non.auc<-utd.dis.df %>%
+  filter(Type %in% c("1A", "2A")) %>%
+  spread(mateBinary, Scores) %>% 
+  group_by(SubID, Group) %>%
+  summarize(AUC=auc(posScores=`1`, negScores=`0`), .groups="drop") %>%
+  mutate(Task="Non-Disguised")
+
+# Impersonation Condition
+utd.dis_imp.auc<-utd.dis.df %>%
+  filter(Type %in% c("1A", "2B")) %>%
+  spread(mateBinary, Scores) %>% 
+  group_by(SubID, Group) %>%
+  summarize(AUC=auc(posScores=`1`, negScores=`0`), .groups="drop") %>%
+  mutate(Task="Impersonation")
+
+# Evasion Condition
+utd.dis_eva.auc<-utd.dis.df %>%
+  filter(Type %in% c("1B", "2A")) %>%
+  spread(mateBinary, Scores) %>% 
+  group_by(SubID, Group) %>%
+  summarize(AUC=auc(posScores=`1`, negScores=`0`), .groups="drop") %>%
+  mutate(Task="Evasion")
+
+# Together
+utd.dis.auc<-rbind(utd.dis_non.auc, utd.dis_imp.auc, utd.dis_eva.auc)
+
+# Calculate Percent Correct (PC) for each participant
+utd.cfmt.pc<-utd.cfmt.df %>%
+  group_by(SubID, Group) %>%
+  summarize(PC=mean(Correct), .groups="drop")
+```
+
+```{r combine}
+ore.auc<-rbind(nist.ore.auc, utd.ore.auc)
+dis.auc<-rbind(nist.dis.auc, utd.dis.auc) %>%
+  mutate(Task=factor(Task, levels=disTasks))
+cfmt.pc<-rbind(nist.cfmt.pc, utd.cfmt.pc)
+```
+
+## Other-Race Face Identification
+
+```{r ore split violin plot, fig.align=figAlign, fig.width=figWidth}
+ggplot(ore.auc, aes(Group, AUC, fill=Stim_Race)) +
+  geom_split_violin() +
+  stat_summary(fun=median, geom="point", size=medSize, stroke=medStroke,
+               mapping=aes(shape=Stim_Race, fill=Stim_Race)) +
+  coord_cartesian(ylim=yLim) +
+  scale_shape_manual(values=c(21, 24),
+                     labels=c("Caucasian", "East Asian")) +
+  scale_fill_manual(values=creColors,
+                    labels=c("Caucasian", "East Asian")) +
+  scale_x_discrete(breaks=c("Examiners", "Reviewers",
+                            "Students_Caucasian",
+                            "Students_EastAsian"),
+                   labels=c("Examiners", "Reviewers",
+                            "Caucasian\nStudents", "East Asian\nStudents")) +
+  labs(x="Group", shape="Race of Stimuli", fill="Race of Stimuli")
+```
+
+### Causasian Stimuli across Groups
+
+```{r ore ca stim mw tests, warning=FALSE}
+stat_table(ore.auc %>% filter(Stim_Race=="Caucasian"), Group, AUC)  %>%
+  mutate_if(is.numeric, function(x) signif(x, digits=numSigDigits)) %>%
+  kable(col.names=c("Group 1", "Group 2", "$N_1$", "$N_2$",
+                    "Median 1", "Median 2", "$U$", "$p$", "$\\alpha$",
+                    "Bonferroni-adjusted $p$"),
+        align="c", escape=FALSE) %>%
+  kable_styling(full_width=FALSE)
+```
+
+### East Asian Stimuli across Groups
+
+```{r ore ea stim mw tests, warning=FALSE}
+stat_table(ore.auc %>% filter(Stim_Race=="EastAsian"), Group, AUC)  %>%
+  mutate_if(is.numeric, function(x) signif(x, digits=numSigDigits)) %>%
+  kable(col.names=c("Group 1", "Group 2", "$N_1$", "$N_2$",
+                    "Median 1", "Median 2", "$U$", "$p$", "$\\alpha$",
+                    "Bonferroni-adjusted $p$"),
+        align="c", escape=FALSE) %>%
+  kable_styling(full_width=FALSE)
+```
+
+### Groups across Stimuli Sets
+
+```{r ore across stimuli sets}
+wide.ore.auc<-ore.auc %>%
+  pivot_wider(id_cols=c(Group, SubID),
+              names_from=Stim_Race,
+              values_from=AUC)
+
+ore.pairs<-data.frame(Group=c("Examiners", "Reviewers",
+                              "Students_Caucasian", "Students_EastAsian"),
+                      N=numeric(4),
+                      MedianC=numeric(4),
+                      MedianEA=numeric(4),
+                      WValue=numeric(4),
+                      pValue=numeric(4),
+                      alpha=0.05/4)
+  
+for (j in 1:4)
+{
+  gp<-ore.pairs$Group[j]
+  
+  scoresC<-wide.ore.auc %>%
+    filter(Group==gp) %>%
+    pull(Caucasian)
+  
+  scoresEA<-wide.ore.auc %>%
+    filter(Group==gp) %>%
+    pull(EastAsian)
+  
+  n<-length(scoresC)
+  
+  wilTest<-suppressWarnings(wilcox.test(x=scoresC, y=scoresEA, paired=TRUE))
+  
+  t1<-wilTest$statistic
+  t2<-choose(n+1, 2) - t1
+  
+  ore.pairs$N[j]<-n
+  ore.pairs$MedianC[j]<-median(scoresC)
+  ore.pairs$MedianEA[j]<-median(scoresEA)
+  ore.pairs$WValue[j]<-min(t1, t2)
+  ore.pairs$pValue[j]<-wilTest$p.value
+}
+
+ore.pairs %>%
+  mutate(BonP=p.adjust(p=pValue, method="bonferroni"))  %>%
+  mutate_if(is.numeric, function(x) signif(x, digits=numSigDigits)) %>%
+  kable(col.names=c("Group", "$N$",
+                    "Median C Stim", "Median EA Stim", "$W$", "$p$",
+                    "$\\alpha$", "Bonferroni-adjusted $p$"),
+        align="c", escape=FALSE) %>%
+  kable_styling(full_width=FALSE)
+```
+
+
+## Disguise
+
+```{r disguise grid violin plot, fig.align=figAlign, fig.width=figWidth}
+disLabs<-c(Examiners="Examiners",
+           Reviewers="Reviewers",
+           Students_Caucasian="Caucasian Students",
+           Students_EastAsian="East Asian Students")
+
+ggplot(dis.auc, aes(x=Task, y=AUC, fill=Task)) +
+  geom_hline(yintercept=0.5) +
+  geom_violin() +
+  facet_wrap(~Group, labeller=labeller(Group=disLabs)) +
+  stat_summary(fun=median, geom="point", size=medSize, stroke=medStroke,
+               mapping=aes(shape=Task, fill=Task)) +
+  scale_shape_manual(values=c(21, 24, 22), breaks=disTasks) +
+  scale_fill_manual(values=cbPalette[2:4], breaks=disTasks) +
+  coord_cartesian(ylim=c(0.40, 1.00)) +
+  labs(x=NULL) +
+  theme(axis.text.x=element_text(angle=15, vjust=1, hjust=1))
+```
+
+### Non-Disguised across Groups
+
+```{r dis non-dis mw tests, warning=FALSE}
+stat_table(dis.auc %>% filter(Task=="Non-Disguised"), Group, AUC)  %>%
+  mutate_if(is.numeric, function(x) signif(x, digits=numSigDigits)) %>%
+  kable(col.names=c("Group 1", "Group 2", "$N_1$", "$N_2$",
+                    "Median 1", "Median 2", "$U$", "$p$", "$\\alpha$",
+                    "Bonferroni-adjusted $p$"),
+        align="c", escape=FALSE) %>%
+  kable_styling(full_width=FALSE)
+```
+
+### Impersonation across Groups
+
+```{r dis imp mw tests, warning=FALSE}
+stat_table(dis.auc %>% filter(Task=="Impersonation"), Group, AUC)  %>%
+  mutate_if(is.numeric, function(x) signif(x, digits=numSigDigits)) %>%
+  kable(col.names=c("Group 1", "Group 2", "$N_1$", "$N_2$",
+                    "Median 1", "Median 2", "$U$", "$p$", "$\\alpha$",
+                    "Bonferroni-adjusted $p$"),
+        align="c", escape=FALSE) %>%
+  kable_styling(full_width=FALSE)
+```
+
+### Evasion across Groups
+
+```{r dis eva mw tests, warning=FALSE}
+stat_table(dis.auc %>% filter(Task=="Evasion"), Group, AUC)  %>%
+  mutate_if(is.numeric, function(x) signif(x, digits=numSigDigits)) %>%
+  kable(col.names=c("Group 1", "Group 2", "$N_1$", "$N_2$",
+                    "Median 1", "Median 2", "$U$", "$p$", "$\\alpha$",
+                    "Bonferroni-adjusted $p$"),
+        align="c", escape=FALSE) %>%
+  kable_styling(full_width=FALSE)
+```
+
+### Examiners across Tasks
+
+```{r dis ex mw tests, warning=FALSE}
+pair_table(dis.auc %>% filter(Group=="Examiners"), idCols=SubID,
+           Task, AUC)  %>%
+  mutate_if(is.numeric, function(x) signif(x, digits=numSigDigits)) %>%
+  kable(col.names=c("Condition 1", "Condition 2", "$N$",
+                    "Median 1", "Median 2", "$W$", "$p$", "$\\alpha$",
+                    "Bonferroni-adjusted $p$"),
+        align="c", escape=FALSE) %>%
+  kable_styling(full_width=FALSE)
+```
+
+### Reviewers across Tasks
+
+```{r dis rv mw tests, warning=FALSE}
+pair_table(dis.auc %>% filter(Group=="Reviewers"), idCols=SubID,
+           Task, AUC)  %>%
+  mutate_if(is.numeric, function(x) signif(x, digits=numSigDigits)) %>%
+  kable(col.names=c("Condition 1", "Condition 2", "$N$",
+                    "Median 1", "Median 2", "$W$", "$p$", "$\\alpha$",
+                    "Bonferroni-adjusted $p$"),
+        align="c", escape=FALSE) %>%
+  kable_styling(full_width=FALSE)
+```
+
+### Caucasian Students across Tasks
+
+```{r dis cs mw tests, warning=FALSE}
+pair_table(dis.auc %>% filter(Group=="Students_Caucasian"), idCols=SubID,
+           Task, AUC)  %>%
+  mutate_if(is.numeric, function(x) signif(x, digits=numSigDigits)) %>%
+  kable(col.names=c("Condition 1", "Condition 2", "$N$",
+                    "Median 1", "Median 2", "$W$", "$p$", "$\\alpha$",
+                    "Bonferroni-adjusted $p$"),
+        align="c", escape=FALSE) %>%
+  kable_styling(full_width=FALSE)
+```
+
+### East Asian Students across Tasks
+
+```{r dis eas mw tests, warning=FALSE}
+pair_table(dis.auc %>% filter(Group=="Students_EastAsian"), idCols=SubID,
+           Task, AUC)  %>%
+  mutate_if(is.numeric, function(x) signif(x, digits=numSigDigits)) %>%
+  kable(col.names=c("Condition 1", "Condition 2", "$N$",
+                    "Median 1", "Median 2", "$W$", "$p$", "$\\alpha$",
+                    "Bonferroni-adjusted $p$"),
+        align="c", escape=FALSE) %>%
+  kable_styling(full_width=FALSE)
+```
+
+## Memory
+
+```{r cfmt violin plot, fig.align=figAlign, fig.width=figWidth}
+ggplot(cfmt.pc %>% mutate(PerCor=PC*100), aes(x=Group, y=PerCor)) +
+  geom_violin() +
+  stat_summary(fun=median, geom="point", shape=medShape, size=medSize,
+               stroke=medStroke, color=medColor) +
+  geom_dotplot(binaxis="y", stackdir="center", dotsize=1.0, binwidth=1) +
+  coord_cartesian(ylim=yLim*100) +
+  scale_x_discrete(breaks=c("Examiners", "Reviewers", "Students"),
+                   labels=c("Examiners", "Reviewers", "Students")) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  labs(x="Group", y="Percent Correct")
+```
+
+```{r cfmt mw tests, warning=FALSE}
+stat_table(cfmt.pc, Group, PC)  %>%
+  mutate_if(is.numeric, function(x) signif(x, digits=numSigDigits)) %>%
+  kable(col.names=c("Group 1", "Group 2", "$N_1$", "$N_2$",
+                    "Median 1", "Median 2", "$U$", "$p$", "$\\alpha$",
+                    "Bonferroni-adjusted $p$"),
+        align="c", escape=FALSE) %>%
+  kable_styling(full_width=FALSE)
+```
+
+## Façade/Disguise Binarized
+
+### Positive
+
+```{r disguise binarized positive}
+dis.posBin.df<-rbind(nist.dis.df, utd.dis.df) %>%
+  mutate(BinScore=if_else(Scores > 0, true=1, false=0),
+         Correct=as.numeric(BinScore==mateBinary),
+         Set=factor(case_when(Type=="1A" ~ "ND Match",
+                       Type=="2A" ~ "ND Non-Match",
+                       Type=="1B" ~ "Evasion",
+                       Type=="2B" ~ "Impersonation",
+                       TRUE ~ "Something's Wrong"),
+                    levels=c("ND Match", "ND Non-Match",
+                             "Evasion", "Impersonation")))
+
+dis.posBin.pc<-dis.posBin.df %>%
+  group_by(SubID, Group, Set) %>%
+  summarize(PC=mean(Correct), .groups="drop")
+
+dis.posBin.pc %>%
+  group_by(Set, Group) %>%
+  summarize(Mean=mean(PC), .groups="drop") %>%
+  pivot_wider(id_cols=Set, names_from=Group, values_from=Mean) %>%
+  mutate_if(is.numeric, function(x) signif(x, digits=numSigDigits)) %>%
+  kable(align="c", escape=FALSE) %>%
+  kable_styling(full_width=FALSE)
+```
+
+### Non-Negative
+
+```{r disguise binarized non-negative}
+dis.nonNegBin.df<-rbind(nist.dis.df, utd.dis.df) %>%
+  mutate(BinScore=if_else(Scores >= 0, true=1, false=0),
+         Correct=as.numeric(BinScore==mateBinary),
+         Set=factor(case_when(Type=="1A" ~ "ND Match",
+                       Type=="2A" ~ "ND Non-Match",
+                       Type=="1B" ~ "Evasion",
+                       Type=="2B" ~ "Impersonation",
+                       TRUE ~ "Something's Wrong"),
+                    levels=c("ND Match", "ND Non-Match",
+                             "Evasion", "Impersonation")))
+
+dis.nonNeg.pc<-dis.nonNegBin.df %>%
+  group_by(SubID, Group, Set) %>%
+  summarize(PC=mean(Correct), .groups="drop")
+
+dis.nonNeg.pc %>%
+  group_by(Set, Group) %>%
+  summarize(Mean=mean(PC), .groups="drop") %>%
+  pivot_wider(id_cols=Set, names_from=Group, values_from=Mean) %>%
+  mutate_if(is.numeric, function(x) signif(x, digits=numSigDigits)) %>%
+  kable(align="c", escape=FALSE) %>%
+  kable_styling(full_width=FALSE)
+```
